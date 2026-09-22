@@ -1,0 +1,740 @@
+{
+  "schema_version": 1,
+  "kind": "public-dataset-sources",
+  "generated_at": "2026-09-22T13:01:00Z",
+  "scope": "public coverage inventory for the mimo-halo-lab dataset plan: SWE task benchmarks, repair/debugging datasets, tool-use datasets, compiler corpora, multi-turn SWE agent trajectories",
+  "partition_names": [
+    "pruning",
+    "quant",
+    "recovery",
+    "validation",
+    "golden",
+    "torture"
+  ],
+  "partition_name_source": "docs/datasets.md (deterministic grouped split: pruning 35% / quant 20% / recovery 20% / validation 10% / golden 10% / torture 5%)",
+  "partition_mapping": {
+    "pruning": "pruning-calibration partition",
+    "quant": "quant-calibration partition",
+    "recovery": "recovery partition",
+    "validation": "validation partition",
+    "golden": "golden partition",
+    "torture": "torture partition"
+  },
+  "fit_criteria": {
+    "pruning": "task/trajectory text usable as pruning-objective calibration material",
+    "quant": "text usable as quantization calibration (activation/statistics) material",
+    "recovery": "error/bug/failed-state material that exercises recovery reasoning",
+    "validation": "evaluation-only material with a defined scoring protocol",
+    "golden": "executable-oracle tasks that could enter golden candidacy after our registration/freeze (never auto-assigned)",
+    "torture": "hard/long/fresh stress material"
+  },
+  "sources": [
+    {
+      "name": "SWE-bench",
+      "category": "swe-task-benchmark",
+      "canonical_url": "https://github.com/swe-bench/SWE-bench",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://github.com/swe-bench/SWE-bench/raw/main/LICENSE (HF card carries no license field)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "test": 2294,
+        "dev": 225,
+        "train": 19008,
+        "instances_unit": "issue-PR pairs",
+        "dataset_bytes_unpacked": 416515483,
+        "repos": 12
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "validation",
+        "golden"
+      ],
+      "notes": [
+        "gold patch + test_patch + FAIL_TO_PASS/PASS_TO_PASS executable oracles + per-instance docker images",
+        "golden candidacy still requires our own registered oracle/freeze per docs/datasets.md"
+      ],
+      "ids": {
+        "huggingface": "princeton-nlp/SWE-bench"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/princeton-nlp/SWE-bench/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "SWE-bench Verified",
+      "category": "swe-task-benchmark",
+      "canonical_url": "https://github.com/swe-bench/SWE-bench",
+      "license": {
+        "spdx_or_stated": "not stated on HF card; SWE-bench repo license MIT",
+        "observed_at": "https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified/raw/main/README.md"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "test": 500,
+        "instances_unit": "human-validated issue-PR pairs",
+        "dataset_bytes_unpacked": 7779763
+      },
+      "fits_partitions": [
+        "validation",
+        "golden"
+      ],
+      "notes": [
+        "500 human-validated subset with difficulty labels; standard executable-oracle protocol"
+      ],
+      "ids": {
+        "huggingface": "princeton-nlp/SWE-bench_Verified"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/princeton-nlp/SWE-bench_Verified/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "SWE-smith",
+      "category": "swe-task-benchmark",
+      "canonical_url": "https://github.com/SWE-bench/SWE-smith",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://huggingface.co/datasets/SWE-bench/SWE-smith/raw/main/README.md (license: mit)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "train": 59136,
+        "card_text_instances": 50137,
+        "repos": 128,
+        "dataset_bytes_unpacked": 5230844719,
+        "download_bytes": 277767206
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "validation"
+      ],
+      "notes": [
+        "synthetic-bug task instances, each with executable environment (image_name)",
+        "mono dataset no longer updated (2025-12-14); language-specific SWE-bench/SWE-smith-[lang] successors",
+        "synthetic provenance -> not golden material"
+      ],
+      "ids": {
+        "huggingface": "SWE-bench/SWE-smith"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/SWE-bench/SWE-smith/raw/main/README.md",
+        "https://github.com/SWE-bench/SWE-smith"
+      ]
+    },
+    {
+      "name": "SWE-Gym",
+      "category": "swe-task-benchmark",
+      "canonical_url": "https://github.com/SWE-Gym/SWE-Gym",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://huggingface.co/datasets/SWE-Gym/SWE-Gym/raw/main/README.md (license: mit)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "train": 2438,
+        "repos": 11,
+        "dataset_bytes_unpacked": 213621640
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "validation",
+        "golden"
+      ],
+      "notes": [
+        "SWE-bench-style executable runtimes + unit tests; training environment for SWE agents"
+      ],
+      "ids": {
+        "huggingface": "SWE-Gym/SWE-Gym",
+        "related": "SWE-Gym/SWE-Gym-Lite"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/SWE-Gym/SWE-Gym/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "SWE-bench-Live",
+      "category": "swe-task-benchmark",
+      "canonical_url": "https://github.com/microsoft/SWE-bench-Live",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://huggingface.co/datasets/SWE-bench-Live/SWE-bench-Live/raw/main/README.md (license: mit)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "full": 1888,
+        "test": 1000,
+        "lite": 300,
+        "verified": 500,
+        "repos": 164,
+        "initial_release_instances": 1319,
+        "cadence": "monthly +50 verified",
+        "multilang_variant_instances": 1077,
+        "multilang_note": "SWE-bench-Live/MultiLang, 2026-08-21 announcement"
+      },
+      "fits_partitions": [
+        "validation",
+        "golden",
+        "torture"
+      ],
+      "notes": [
+        "auto-updating, contamination-resistant; difficulty {files,hunks,lines} struct per instance",
+        "fresh/hard long-tail instances -> torture candidates; frozen lite/verified splits for stable validation"
+      ],
+      "ids": {
+        "huggingface": "SWE-bench-Live/SWE-bench-Live"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/SWE-bench-Live/SWE-bench-Live/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "Defects4J",
+      "category": "repair-dataset",
+      "canonical_url": "https://github.com/rjust/defects4j",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://api.github.com/repos/rjust/defects4j (license.spdx_id MIT)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "version": "3.0.1",
+        "active_bugs": 854,
+        "deprecated_bugs": 10,
+        "projects": 17,
+        "prior_widely_cited_count_v2": "835"
+      },
+      "fits_partitions": [
+        "recovery",
+        "validation",
+        "golden"
+      ],
+      "notes": [
+        "per-bug triggering-test oracle (tests.trigger), minimized single-commit fixes, reproducible checkouts",
+        "Java only; requires Java 11 + Perl framework"
+      ],
+      "ids": {
+        "ids": {}
+      },
+      "evidence_urls": [
+        "https://raw.githubusercontent.com/rjust/defects4j/master/README.md"
+      ]
+    },
+    {
+      "name": "BugsInPy",
+      "category": "repair-dataset",
+      "canonical_url": "https://github.com/soarsmu/BugsInPy",
+      "license": {
+        "spdx_or_stated": "none declared (GitHub API license=null; no LICENSE file at default branch)",
+        "observed_at": "https://api.github.com/repos/soarsmu/BugsInPy"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "bugs": 493,
+        "projects": 17,
+        "language": "python"
+      },
+      "fits_partitions": [
+        "recovery",
+        "validation",
+        "golden"
+      ],
+      "notes": [
+        "real Python bugs with bug/fix checkouts + test execution framework (FSE 2020)",
+        "rights note: no license declared -> redistribution/golden use needs rights review"
+      ],
+      "ids": {},
+      "evidence_urls": [
+        "https://dl.acm.org/doi/abs/10.1145/3368089.3417943"
+      ]
+    },
+    {
+      "name": "ToolBench (ToolLLM)",
+      "category": "tool-use-dataset",
+      "canonical_url": "https://github.com/OpenBMB/ToolBench",
+      "license": {
+        "spdx_or_stated": "Apache-2.0 (data section) + research/education-only intent notice",
+        "observed_at": "https://raw.githubusercontent.com/OpenBMB/ToolBench/master/README.md"
+      },
+      "modality": [
+        "trajectory"
+      ],
+      "size": {
+        "instances": 126486,
+        "apis": 16464,
+        "tools": 3451,
+        "real_api_calls": 469585,
+        "avg_reasoning_traces": 4.0
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant"
+      ],
+      "notes": [
+        "DFSDT solution-path annotations include reasoning, tool calls and tool results (trajectory-shaped SFT)",
+        "rights note: README restricts to research/educational purposes despite Apache-2.0 statement -> confirm before training use",
+        "distributed via Google Drive / Tsinghua Cloud, not Hugging Face; RapidAPI endpoints mostly stale (StableToolBench fork exists)"
+      ],
+      "ids": {},
+      "evidence_urls": [
+        "https://raw.githubusercontent.com/OpenBMB/ToolBench/master/README.md"
+      ]
+    },
+    {
+      "name": "xLAM function-calling 60k (APIGen)",
+      "category": "tool-use-dataset",
+      "canonical_url": "https://huggingface.co/datasets/Salesforce/xlam-function-calling-60k",
+      "license": {
+        "spdx_or_stated": "cc-by-4.0",
+        "observed_at": "https://huggingface.co/api/datasets/Salesforce/xlam-function-calling-60k (cardData.license)"
+      },
+      "modality": [
+        "task"
+      ],
+      "size": {
+        "instances": 60000,
+        "domains": 21,
+        "stored_bytes": 472495664,
+        "format": "single JSON"
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant"
+      ],
+      "notes": [
+        "three-stage verified (format/execution/semantic) function-calling pairs",
+        "gated repo (auto-approve + affiliation form)"
+      ],
+      "ids": {},
+      "evidence_urls": [
+        "https://huggingface.co/datasets/Salesforce/xlam-function-calling-60k"
+      ]
+    },
+    {
+      "name": "BFCL (Berkeley Function-Calling Leaderboard)",
+      "category": "tool-use-dataset",
+      "canonical_url": "https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard",
+      "license": {
+        "spdx_or_stated": "Apache-2.0",
+        "observed_at": "https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard/raw/main/README.md (license: apache-2.0)"
+      },
+      "modality": [
+        "task"
+      ],
+      "size": {
+        "v1_ast": "simple 400 / multiple 200 / parallel 200 / parallel-multiple 200 (+exec subsets), relevance 240, REST 70, SQL 100, Java 100, JS 50, chatting 200",
+        "v2_live": "simple 258 / multiple 1037 / parallel 16 / parallel-multiple 24 / irrelevance 875 / relevance 41",
+        "v3_multiturn": "base 200 / augmented 800",
+        "format": "JSONL per category"
+      },
+      "fits_partitions": [
+        "validation"
+      ],
+      "notes": [
+        "AST + executable evaluation modes; v3 adds multi-step/multi-turn function calling",
+        "leaderboard eval only -> validation partition, not training material"
+      ],
+      "ids": {
+        "huggingface": "gorilla-llm/Berkeley-Function-Calling-Leaderboard"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "DebugBench",
+      "category": "debugging-corpus",
+      "canonical_url": "https://github.com/thunlp/DebugBench",
+      "license": {
+        "spdx_or_stated": "Apache-2.0",
+        "observed_at": "https://huggingface.co/datasets/Rtian/DebugBench/raw/main/README.md (license: apache-2.0)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "instances": 4253,
+        "languages": [
+          "cpp",
+          "java",
+          "python"
+        ],
+        "bug_categories_major": 4,
+        "bug_categories_minor": 18,
+        "difficulty_levels": 3
+      },
+      "fits_partitions": [
+        "recovery",
+        "validation"
+      ],
+      "notes": [
+        "buggy_code -> ground-truth solution + implanted-bug explanation (GPT-4 implanted on LeetCode snippets)",
+        "oracle = LeetCode test suites requiring a leetcode_session cookie -> golden impractical"
+      ],
+      "ids": {
+        "huggingface": "Rtian/DebugBench"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/Rtian/DebugBench/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "QuixBugs",
+      "category": "repair-dataset",
+      "canonical_url": "https://github.com/jkoppel/QuixBugs",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://github.com/jkoppel/QuixBugs (LICENSE text observed)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "programs": 40,
+        "languages": [
+          "python",
+          "java"
+        ],
+        "bug_shape": "single-line bug per program"
+      },
+      "fits_partitions": [
+        "recovery",
+        "validation",
+        "golden"
+      ],
+      "notes": [
+        "unit tests included; tiny curated set -> good golden/validation seed after oracle registration"
+      ],
+      "ids": {},
+      "evidence_urls": [
+        "https://github.com/jkoppel/QuixBugs"
+      ]
+    },
+    {
+      "name": "ManySStuBs4J",
+      "category": "repair-dataset",
+      "canonical_url": "https://doi.org/10.5281/zenodo.3653444",
+      "license": {
+        "spdx_or_stated": "cc-by-4.0",
+        "observed_at": "https://zenodo.org/api/records/3653444 (metadata.license.id)"
+      },
+      "modality": [
+        "patch"
+      ],
+      "size": {
+        "version": "2.0",
+        "record_total_bytes": 1042193501,
+        "files": {
+          "topJavaMavenProjects.csv": 6825,
+          "README.txt": 7345,
+          "bugsLarge": 509717237,
+          "topProjects.csv": 251564433,
+          "sstubs": 26307657,
+          "sstubsLarge": 173246828,
+          "bugs": 81325759,
+          "license_text": 17417
+        },
+        "variants": "100 Java Maven projects + top-1000 projects",
+        "syntax_templates": 16
+      },
+      "fits_partitions": [
+        "recovery",
+        "pruning",
+        "quant"
+      ],
+      "notes": [
+        "mined single-statement Java bug fixes (SZZ), JSON corpora; no executable oracle -> not golden",
+        "tooling: https://github.com/mast-group/SStuBs-mining"
+      ],
+      "ids": {},
+      "evidence_urls": [
+        "https://zenodo.org/api/records/3653444"
+      ]
+    },
+    {
+      "name": "CompilerGym",
+      "category": "compiler-corpus",
+      "canonical_url": "https://github.com/facebookresearch/CompilerGym",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://github.com/facebookresearch/CompilerGym (LICENSE observed)"
+      },
+      "modality": [
+        "task"
+      ],
+      "size": {
+        "llm_leaderboard_dataset": "cbench-v1: 23 benchmarks",
+        "instance_scale": "millions of optimization instances via LLVM pass sequences (README)"
+      },
+      "fits_partitions": [
+        "validation"
+      ],
+      "notes": [
+        "executable rewards (instruction count, runtime) + correctness validation -> eval/env partition material",
+        "cBench programs could seed golden/torture only after environment registration"
+      ],
+      "ids": {},
+      "evidence_urls": [
+        "https://raw.githubusercontent.com/facebookresearch/CompilerGym/development/README.md"
+      ]
+    },
+    {
+      "name": "R2E-Gym (Lite)",
+      "category": "swe-task-benchmark",
+      "canonical_url": "https://github.com/R2E-Gym/R2E-Gym",
+      "license": {
+        "spdx_or_stated": "Apache-2.0 (repo); HF card carries no license field",
+        "observed_at": "https://api.github.com/repos/R2E-Gym/R2E-Gym (license.spdx_id Apache-2.0)"
+      },
+      "modality": [
+        "task",
+        "patch"
+      ],
+      "size": {
+        "train": 4578,
+        "dev_splits": "100 to 1876 instances per dev split",
+        "dataset_bytes_unpacked": 8692158115,
+        "download_bytes": 2190758905
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "validation",
+        "golden"
+      ],
+      "notes": [
+        "procedural environment generation + hybrid verifiers; docker images and expected-output checks per instance",
+        "HF R2E-Gym/R2E-Gym-Lite; trajectories in R2E-Gym/R2EGym-SFT-Trajectories"
+      ],
+      "ids": {
+        "huggingface": "R2E-Gym/R2E-Gym-Lite"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/R2E-Gym/R2E-Gym-Lite/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "R2EGym-SFT-Trajectories",
+      "category": "swe-trajectories",
+      "canonical_url": "https://huggingface.co/datasets/R2E-Gym/R2EGym-SFT-Trajectories",
+      "license": {
+        "spdx_or_stated": "not stated on card; project repo Apache-2.0",
+        "observed_at": "https://huggingface.co/datasets/R2E-Gym/R2EGym-SFT-Trajectories/raw/main/README.md"
+      },
+      "modality": [
+        "trajectory"
+      ],
+      "size": {
+        "train": 3231,
+        "dataset_bytes": 154802030,
+        "download_bytes": 55949361,
+        "format": "messages(role, content) lists"
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "validation"
+      ],
+      "notes": [
+        "SFT-ready multi-turn agent trajectories from the R2E-Gym paper (COLM 2025)"
+      ],
+      "ids": {
+        "huggingface": "R2E-Gym/R2EGym-SFT-Trajectories"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/R2E-Gym/R2EGym-SFT-Trajectories/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "OpenHands-SFT-Trajectories (SWE-Gym)",
+      "category": "swe-trajectories",
+      "canonical_url": "https://huggingface.co/datasets/SWE-Gym/OpenHands-SFT-Trajectories",
+      "license": {
+        "spdx_or_stated": "MIT",
+        "observed_at": "https://huggingface.co/datasets/SWE-Gym/OpenHands-SFT-Trajectories/raw/main/README.md (license: mit)"
+      },
+      "modality": [
+        "trajectory"
+      ],
+      "size": {
+        "train_success_oss": 491,
+        "dataset_bytes": 31805636,
+        "download_bytes": 10379409,
+        "format": "messages(role, content) lists"
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "validation"
+      ],
+      "notes": [
+        "successful OpenHands trajectories only (SFT-ready subset)"
+      ],
+      "ids": {
+        "huggingface": "SWE-Gym/OpenHands-SFT-Trajectories"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/SWE-Gym/OpenHands-SFT-Trajectories/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "nebius SWE-agent-trajectories",
+      "category": "swe-trajectories",
+      "canonical_url": "https://huggingface.co/datasets/nebius/SWE-agent-trajectories",
+      "license": {
+        "spdx_or_stated": "cc-by-4.0",
+        "observed_at": "https://huggingface.co/datasets/nebius/SWE-agent-trajectories/raw/main/README.md"
+      },
+      "modality": [
+        "trajectory"
+      ],
+      "size": {
+        "train": 80036,
+        "dataset_bytes": 5627973531,
+        "download_bytes": 1114367701,
+        "resolved": 13389,
+        "unresolved": 66647,
+        "avg_steps_resolved": 31.3,
+        "avg_steps_unresolved": 58.4,
+        "fields": [
+          "trajectory",
+          "generated_patch",
+          "eval_logs",
+          "exit_status",
+          "target"
+        ]
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "recovery",
+        "validation"
+      ],
+      "notes": [
+        "SWE-agent scaffold over nebius/SWE-bench-extra + SWE-bench dev; resolved and failed rollouts both retained",
+        "card notice: some trajectories use Llama-3.1-licensed outputs -> check per-use; per-repo licenses in SWE-bench-extra"
+      ],
+      "ids": {
+        "huggingface": "nebius/SWE-agent-trajectories"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/nebius/SWE-agent-trajectories/raw/main/README.md"
+      ]
+    },
+    {
+      "name": "nebius SWE-rebench-OpenHands-Trajectories",
+      "category": "swe-trajectories",
+      "canonical_url": "https://huggingface.co/datasets/nebius/SWE-rebench-openhands-trajectories",
+      "license": {
+        "spdx_or_stated": "cc-by-4.0",
+        "observed_at": "https://github.com/swiss-ai/apertus-data-transparency/issues/29 (dataset registry entry) + https://nebius.com/blog/posts/openhands-trajectories-with-qwen3-coder-480b"
+      },
+      "modality": [
+        "trajectory"
+      ],
+      "size": {
+        "trajectories": 67074,
+        "repos": 1823,
+        "resolved_issues": 3792,
+        "scaffold": "OpenHands v0.54.0",
+        "generator": "Qwen3-Coder-480B-A35B-Instruct"
+      },
+      "fits_partitions": [
+        "pruning",
+        "quant",
+        "recovery",
+        "validation"
+      ],
+      "notes": [
+        "complete agent execution traces on real GitHub issues from nebius/SWE-rebench",
+        "companion instance dataset nebius/SWE-rebench not independently verified in this pass"
+      ],
+      "ids": {
+        "huggingface": "nebius/SWE-rebench-openhands-trajectories"
+      },
+      "evidence_urls": [
+        "https://huggingface.co/datasets/nebius/SWE-rebench-openhands-trajectories",
+        "https://nebius.com/blog/posts/openhands-trajectories-with-qwen3-coder-480b"
+      ]
+    },
+    {
+      "name": "Terminal-Bench",
+      "category": "agent-benchmark",
+      "canonical_url": "https://github.com/harbor-framework/terminal-bench",
+      "license": {
+        "spdx_or_stated": "Apache-2.0",
+        "observed_at": "https://api.github.com/repos/harbor-framework/terminal-bench (license.spdx_id Apache-2.0)"
+      },
+      "modality": [
+        "task"
+      ],
+      "size": {
+        "shape": "continuous benchmark with tagged releases; task count published per release on Harbor Hub",
+        "count_note": "exact per-release task count not stated in repo README",
+        "oracle": "oracle solutions shipped per task (runnable via harbor --agent oracle)"
+      },
+      "fits_partitions": [
+        "validation",
+        "torture"
+      ],
+      "notes": [
+        "hard, evolving terminal/agent tasks across many domains; oracle runners make tasks executable -> golden candidates after registration",
+        "dataset + leaderboard: https://hub.harborframework.com/datasets/terminal-bench/terminal-bench"
+      ],
+      "ids": {},
+      "evidence_urls": [
+        "https://raw.githubusercontent.com/harbor-framework/terminal-bench/main/README.md"
+      ]
+    }
+  ],
+  "considered_not_included": [
+    {
+      "name": "SWE-Fixer / SWE-Fixer-Train-110K",
+      "reason": "canonical repo + license not verified in this pass"
+    },
+    {
+      "name": "nebius/SWE-bench-extra",
+      "reason": "companion instance dataset referenced by SWE-agent-trajectories; card not read this pass"
+    },
+    {
+      "name": "SWE-bench Multimodal / Multilingual / Pro",
+      "reason": "variants outside requested scope; not verified this pass"
+    },
+    {
+      "name": "BugsJS, Devign, CURE",
+      "reason": "additional repair corpora; licenses not verified in this pass"
+    },
+    {
+      "name": "AgentBench, tau-bench",
+      "reason": "agent evals beyond the requested tool-use slice; not verified this pass"
+    }
+  ],
+  "verification_note": "every license/size fact above was read from the cited evidence URL during this pass; fields without a direct observation carry an explicit note (e.g. 'not stated on card')"
+}

@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/dymoo/mimo-halo-lab/main/schemas/state-snapshot.schema.json",
+  "title": "MiMo Halo state-tier snapshot receipt",
+  "description": "Public contract for canonical receipts and index records emitted by mimo_halo.state_tier.store put and printed by inspect. Digest fields are SHA-256 hex and provide integrity only, not authenticity or signature. Identity fields are caller-supplied structural fingerprints: the store validates their structure and equality, never that any server or model actually loaded them.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "snapshot_id",
+    "session_id",
+    "generation",
+    "token_count",
+    "token_sha256",
+    "identity",
+    "state_sha256",
+    "serialized_bytes",
+    "created_at",
+    "last_accessed",
+    "blob_path",
+    "kind"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "snapshot_id": {
+      "description": "Deterministic identifier derived from namespace, session id and generation. At most one record exists per (namespace, session_id, generation).",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "session_id": {
+      "description": "Opaque logical-session identifier. Never used to build filesystem paths.",
+      "type": "string",
+      "minLength": 1
+    },
+    "generation": {
+      "description": "Monotonic semantic state revision for the session. A repeated generation with different content or identity is refused.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "token_count": {
+      "description": "Logical token count declared by the caller; metadata only, never raw tokens.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "token_sha256": {
+      "description": "SHA-256 over the caller's token id sequence; metadata only.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity": { "$ref": "#/$defs/identity" },
+    "state_sha256": {
+      "description": "SHA-256 of every serialized payload byte stored in the blob.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "serialized_bytes": {
+      "description": "Actual payload bytes written and verified.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "created_at": {
+      "description": "Unix seconds when the record was first published.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_accessed": {
+      "description": "Unix seconds of the most recent successful put-reuse or get. Index metadata only; immutable blob bytes are never rewritten for access time or retention class.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "blob_path": {
+      "description": "Store-relative immutable blob path confined under blobs/<namespace shard>/<content hash>.bin.",
+      "type": "string",
+      "pattern": "^blobs/[0-9a-f]{16}/[0-9a-f]{64}\\.bin$"
+    },
+    "kind": { "const": "target_state" },
+    "io_metrics": {
+      "description": "Honest per-operation write accounting. Present on every put receipt (and put stdout); per-operation, therefore not persisted in the index and absent from inspect output. Counts only payload blob bytes this put operation actually wrote: the full payload size when a new or healing blob was written, 0 when an existing verified blob was reused or deduplicated. Excludes SQLite/index writes, filesystem metadata, the receipt file itself, and NAND/SSD write amplification — it is not a device-level write claim.",
+      "type": "object",
+      "required": ["payload_bytes_written"],
+      "additionalProperties": false,
+      "properties": {
+        "payload_bytes_written": {
+          "description": "Payload-file bytes written to the store by the emitting put operation; 0 when that operation reused an existing verified blob.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "identity": {
+      "description": "Compatibility identity, schema_version 1. Structure and equality only; not an attestation claim about any remote server.",
+      "type": "object",
+      "required": [
+        "schema_version",
+        "model_sha256",
+        "quant_revision",
+        "tokenizer_sha256",
+        "chat_template_sha256",
+        "runtime_commit",
+        "runtime_patch_sha256",
+        "cache_format_version",
+        "kv_config_sha256",
+        "namespace"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "const": 1 },
+        "model_sha256": { "$ref": "#/$defs/sha256" },
+        "quant_revision": {
+          "description": "Exact quant/source revision identifier.",
+          "type": "string",
+          "minLength": 1
+        },
+        "tokenizer_sha256": { "$ref": "#/$defs/sha256" },
+        "chat_template_sha256": { "$ref": "#/$defs/sha256" },
+        "runtime_commit": {
+          "description": "Full 40-hex runtime commit.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "runtime_patch_sha256": {
+          "description": "SHA-256 of the local patch set; hash of the empty patch set when none.",
+          "$ref": "#/$defs/sha256"
+        },
+        "cache_format_version": {
+          "description": "Nonempty cache format version string.",
+          "type": "string",
+          "minLength": 1
+        },
+        "kv_config_sha256": {
+          "description": "SHA-256 of the canonical semantic cache config (RoPE, context, SWA, KV precision).",
+          "$ref": "#/$defs/sha256"
+        },
+        "namespace": {
+          "description": "Opaque security principal ID. Isolation is enforced by identity equality on get, never inferred from filesystem layout.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

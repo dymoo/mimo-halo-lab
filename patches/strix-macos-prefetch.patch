@@ -1,0 +1,31 @@
+diff --git a/src/llama-ple-disk.cpp b/src/llama-ple-disk.cpp
+index e21ab0b..83bbb00 100644
+--- a/src/llama-ple-disk.cpp
++++ b/src/llama-ple-disk.cpp
+@@ -5,6 +5,7 @@
+ #include <algorithm>
+ #include <atomic>
+ #include <chrono>
++#include <climits>
+ #include <condition_variable>
+ #include <cstring>
+ #include <mutex>
+@@ -382,8 +383,18 @@ void llama_ple_disk::prefetch(const int32_t * idx, size_t n) const {
+     std::sort(uniq.begin(), uniq.end());
+     uniq.erase(std::unique(uniq.begin(), uniq.end()), uniq.end());
+     for (const int32_t row : uniq) {
++#if defined(__APPLE__)
++        // Darwin has no posix_fadvise; F_RDADVISE takes radvisory{offset, count} (int count).
++        // Best-effort advice, like the posix_fadvise call: a failed or clamped
++        // request costs readahead and nothing else.
++        struct radvisory ra;
++        ra.ra_offset = (off_t) pimpl->offs + (off_t) row * (off_t) pimpl->rs;
++        ra.ra_count  = pimpl->rs < (size_t) INT_MAX ? (int) pimpl->rs : INT_MAX;
++        fcntl(pimpl->fd, F_RDADVISE, &ra);
++#elif defined(__linux__)
+         const off_t off = (off_t) pimpl->offs + (off_t) row * (off_t) pimpl->rs;
+         posix_fadvise(pimpl->fd, off, (off_t) pimpl->rs, POSIX_FADV_WILLNEED);
++#endif
+     }
+ #endif
+ }

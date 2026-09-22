@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/dymoo/mimo-halo-lab/main/schemas/state-retention.schema.json",
+  "title": "NVMe state-tier retention documents",
+  "description": "Public contract for the mimo_halo.state_tier.retention CLI: the config (configs/state-retention.json), the observation (--input) and the decision (--output), each schema_version 1. The three document kinds are discriminated by their required keys. Byte caps are exact decimal (non-si) byte counts; timestamps are epoch seconds on the caller's explicit observation clock -- the tool never reads a wall clock. All retention windows are soft policy targets: nothing in this schema expresses a hard TTL eviction, and prefix entries never expire by age.",
+  "oneOf": [
+    { "$ref": "#/$defs/config" },
+    { "$ref": "#/$defs/observation" },
+    { "$ref": "#/$defs/decision" }
+  ],
+  "$defs": {
+    "schemaVersion": { "const": 1 },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "0 interactive, 1 high-priority local, 2 normal, 3 background. Lower numbers win admission and are evicted last."
+    },
+    "epochSeconds": {
+      "type": "number",
+      "description": "Finite epoch seconds on the explicit observation clock; must not be after observation.now."
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Exact non-negative byte count; integers only, never a rounded or fractional estimate."
+    },
+    "lifecycle": {
+      "enum": ["RUNNING", "WAITING", "SUSPENDING", "NVME_RESIDENT", "RESTORING"]
+    },
+    "tier": {
+      "enum": ["HOT", "WARM", "COLD"]
+    },
+    "preferredWindow": {
+      "type": "object",
+      "required": ["preferred_retention_seconds", "max_size_bytes"],
+      "additionalProperties": false,
+      "properties": {
+        "preferred_retention_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Soft preferred retention window in seconds. Not a deadline: exceeding it never deletes bytes by itself (warm acts only as a class demotion trigger)."
+        },
+        "max_size_bytes": {
+          "$ref": "#/$defs/bytes",
+          "description": "Soft tier quota in exact bytes. Warm overflow first demotes least-recently-accessed sessions to cold (metadata only: frees warm budget, never disk bytes) and the demoted bytes then consume the cold quota; only the cold quota or an explicit disk target deletes snapshots. Never resolved by age windows."
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "description": "Retention policy config. Exact key set; unknown keys are refused so a typo cannot silently fall back to a default.",
+      "required": [
+        "schema_version",
+        "hot_idle_grace_seconds",
+        "warm_nvme",
+        "cold_nvme",
+        "prefix_cache",
+        "quick_reactivation_window_seconds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schemaVersion" },
+        "hot_idle_grace_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Soft HOT idle grace. Without pressure nothing leaves HOT regardless of idle age; under pressure a HOT+WAITING session becomes a victim only once idle past this grace, unless a strictly higher-priority incoming request or a positive required_free_bytes under real uma_pressure overrides it."
+        },
+        "warm_nvme": { "$ref": "#/$defs/preferredWindow" },
+        "cold_nvme": { "$ref": "#/$defs/preferredWindow" },
+        "prefix_cache": {
+          "type": "object",
+          "description": "Independent immutable-prefix policy: no age expiry ever, LRU under its own quota or an explicit disk free-bytes target.",
+          "required": ["preferred_retention_seconds", "eviction", "max_size_bytes"],
+          "additionalProperties": false,
+          "properties": {
+            "preferred_retention_seconds": {
+              "type": "null",
+              "description": "Always null: conversation retention windows do not apply to immutable prefixes."
+            },
+            "eviction": { "const": "LRU" },
+            "max_size_bytes": { "$ref": "#/$defs/bytes" }
+          }
+        },
+        "quick_reactivation_window_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Observation horizon defining a quick reactivation after eviction (telemetry denominator convention only; this CLI emits no metrics)."
+        }
+      }
+    },
+    "pressure": {
+      "type": "object",
+      "required": ["needs_hot_slot", "uma_pressure", "disk_pressure", "required_free_bytes"],
+      "additionalProperties": false,
+      "properties": {
+        "needs_hot_slot": {
+          "type": "boolean",
+          "description": "Boolean hot-slot admission demand; sized as exactly one incoming slot."
+        },
+        "uma_pressure": {
+          "type": "boolean",
+          "description": "UMA byte pressure; its target is required_free_bytes against the hot pool, and a positive target overrides hot idle grace for HOT+WAITING victims even with no incoming priority."
+        },
+        "disk_pressure": {
+          "type": "boolean",
+          "description": "Disk byte pressure; its target is required_free_bytes against prefix entries first, then NVMe snapshots."
+        },
+        "required_free_bytes": {
+          "$ref": "#/$defs/bytes",
+          "description": "Byte target for the flagged pressure resources. 0 means unsized: the rationale must say no byte target exists rather than invent freed memory."
+        }
+      }
+    },
+    "session": {
+      "type": "object",
+      "description": "Logical-session observation. Optional measured fields (restore cost, prefix reuse, etc.) may appear as additional properties; the initial policy validates the known keys and does not rank on unmeasured extras.",
+      "required": [
+        "session_id",
+        "lifecycle",
+        "tier",
+        "priority",
+        "last_accessed",
+        "state_bytes",
+        "waiting_reason",
+        "expected_wakeup"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque unique session identifier; echoed verbatim in decisions."
+        },
+        "lifecycle": { "$ref": "#/$defs/lifecycle" },
+        "tier": { "$ref": "#/$defs/tier" },
+        "priority": { "$ref": "#/$defs/priority" },
+        "last_accessed": { "$ref": "#/$defs/epochSeconds" },
+        "state_bytes": { "$ref": "#/$defs/bytes" },
+        "waiting_reason": { "type": ["string", "null"] },
+        "expected_wakeup": { "type": ["number", "null"] }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["tier"],
+            "properties": { "tier": { "const": "HOT" } }
+          },
+          "then": {
+            "required": ["lifecycle"],
+            "properties": {
+              "lifecycle": { "enum": ["RUNNING", "WAITING", "SUSPENDING", "RESTORING"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["tier"],
+            "properties": { "tier": { "enum": ["WARM", "COLD"] } }
+          },
+          "then": {
+            "required": ["lifecycle"],
+            "properties": { "lifecycle": { "const": "NVME_RESIDENT" } }
+          }
+        }
+      ]
+    },
+    "prefixEntry": {
+      "type": "object",
+      "description": "Immutable prefix-cache observation. Additional measured reuse fields may appear as extra properties; entries are never selected by age.",
+      "required": ["prefix_id", "last_accessed", "state_bytes", "compatible"],
+      "properties": {
+        "prefix_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Immutable unique prefix identifier."
+        },
+        "last_accessed": { "$ref": "#/$defs/epochSeconds" },
+        "state_bytes": { "$ref": "#/$defs/bytes" },
+        "compatible": {
+          "type": "boolean",
+          "description": "Identity match against the required compatibility identity; incompatible entries are always selected for eviction."
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "description": "Decision input. All idleness derives from now; no wall-clock reads.",
+      "required": [
+        "schema_version",
+        "now",
+        "pressure",
+        "incoming_priority",
+        "sessions",
+        "prefix_entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schemaVersion" },
+        "now": {
+          "$ref": "#/$defs/epochSeconds",
+          "description": "Explicit observation clock in epoch seconds; every idle duration is now minus last_accessed."
+        },
+        "pressure": { "$ref": "#/$defs/pressure" },
+        "incoming_priority": {
+          "oneOf": [{ "$ref": "#/$defs/priority" }, { "type": "null" }],
+          "description": "Priority of the request awaiting admission, or null when no admission is pending."
+        },
+        "sessions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/session" }
+        },
+        "prefix_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/prefixEntry" }
+        }
+      }
+    },
+    "retentionAction": {
+      "type": "object",
+      "required": ["session_id", "action", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "session_id": { "type": "string", "minLength": 1 },
+        "action": {
+          "enum": ["keep", "demote_to_cold", "evict_snapshot"],
+          "description": "keep retains current class/bytes; demote_to_cold changes warm/cold class metadata only; evict_snapshot removes a durable NVMe snapshot (cold-quota or disk LRU only, never age; warm overflow demotes first)."
+        },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "description": "Decision output. Every value is advisory: the module itself performs no runtime, scheduler or disk mutation.",
+      "required": [
+        "schema_version",
+        "hot_evictions",
+        "retention_actions",
+        "prefix_evictions",
+        "rationale",
+        "effective_config"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schemaVersion" },
+        "hot_evictions": {
+          "type": "array",
+          "description": "Sessions to yield from HOT, in selection order (slot victim first, then lowest-priority/longest-idle). Never RUNNING/SUSPENDING/RESTORING.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "retention_actions": {
+          "type": "array",
+          "description": "Exactly one action per observed session, input order preserved.",
+          "items": { "$ref": "#/$defs/retentionAction" }
+        },
+        "prefix_evictions": {
+          "type": "array",
+          "description": "Prefix IDs to evict (incompatible first, then LRU quota/disk selections); never age-selected.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable decision accounting. Any sizing the observation cannot provide (unserved boolean demand, unmet byte targets) must appear here explicitly; freed numbers are always sums of observed state_bytes, never estimates."
+        },
+        "effective_config": { "$ref": "#/$defs/config" }
+      }
+    }
+  }
+}
