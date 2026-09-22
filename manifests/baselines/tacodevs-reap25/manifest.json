@@ -1,0 +1,14 @@
+{
+  "base_model": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+  "baseline_id": "tacodevs-reap25-mixed3bit-gptq-mtp",
+  "excluded": {
+    "tokenizer.json": "11.4 MB tokenizer vocabulary exceeds metadata size budget; sizes recorded in tree.json",
+    "weights": "all .safetensors/.pt/.bin files never fetched; byte counts recorded in tree.json"
+  },
+  "file_count": 18,
+  "repo_id": "tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP",
+  "retrieved_at": "2026-09-22T09:04:32+00:00",
+  "revision": "95d80053eb22112f2acc4244330eb67b4f534c94",
+  "schema_version": 1,
+  "total_archived_bytes": 276932
+}

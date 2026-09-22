@@ -1,0 +1,182 @@
+[
+  {
+    "fetched_at": "2026-09-22T09:04:25+00:00",
+    "git_blob_sha1": "2844f6baac7f88478b76d5397fe65ac577f3dde1",
+    "lfs_oid": null,
+    "path": "README.md",
+    "sha256": "1473e497e158f5ea10baf26b31dc5902231534ca07d76ed41fe6d1c8e2fe1ff8",
+    "size_bytes": 5131,
+    "tree_oid": "2844f6baac7f88478b76d5397fe65ac577f3dde1",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/README.md"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:25+00:00",
+    "git_blob_sha1": "2c3a43c0151bdc0edd6005a3a1e186e3fd48a960",
+    "lfs_oid": null,
+    "path": "config.json",
+    "sha256": "e5b18ed1a3a349265811f42971a66f81071f5a19212dd87c795293eb1da0cee1",
+    "size_bytes": 83217,
+    "tree_oid": "2c3a43c0151bdc0edd6005a3a1e186e3fd48a960",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:25+00:00",
+    "git_blob_sha1": "ce3bb0635ab714d826bb0bde3c0b54f0ae52026c",
+    "lfs_oid": null,
+    "path": "compression_alloc.json",
+    "sha256": "8a54bc1e843d5f1ec86bb31dfb760ad7ba01e7e4f350ee034b51a50a87e5ce97",
+    "size_bytes": 35735,
+    "tree_oid": "ce3bb0635ab714d826bb0bde3c0b54f0ae52026c",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/compression_alloc.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:26+00:00",
+    "git_blob_sha1": "6c3bd71cb301cd5909b448cf5758405e005379fd",
+    "lfs_oid": null,
+    "path": "compression_eval.json",
+    "sha256": "18275a29e2df9d17611cefff52606a467e4dd531569c8e6054d39f6b2bad9ed0",
+    "size_bytes": 220,
+    "tree_oid": "6c3bd71cb301cd5909b448cf5758405e005379fd",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/compression_eval.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:26+00:00",
+    "git_blob_sha1": "f23265d928b22848e4879cc0f1d6cfe999bf7429",
+    "lfs_oid": null,
+    "path": "chat_template.jinja",
+    "sha256": "853650bee57bf95020373e4c928bd5a4b41b9915adf964a77711d2b49a291887",
+    "size_bytes": 3868,
+    "tree_oid": "f23265d928b22848e4879cc0f1d6cfe999bf7429",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/chat_template.jinja"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:27+00:00",
+    "git_blob_sha1": "167a2b078ebc16fc7633618141c1f9869783a65c",
+    "lfs_oid": null,
+    "path": "generation_config.json",
+    "sha256": "eecf00d9701921271c904a916c425ba6db61bcd190902e200d0a322bfd5572dd",
+    "size_bytes": 195,
+    "tree_oid": "167a2b078ebc16fc7633618141c1f9869783a65c",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/generation_config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:27+00:00",
+    "git_blob_sha1": "1185b8d48b3afccc29701bcd08f0c6b770094bb5",
+    "lfs_oid": null,
+    "path": "tokenizer_config.json",
+    "sha256": "8524fc932eb8e29ee16a86b756e21730ba46e51fe5b9b2b090a6b84d6820bf00",
+    "size_bytes": 885,
+    "tree_oid": "1185b8d48b3afccc29701bcd08f0c6b770094bb5",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/tokenizer_config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:28+00:00",
+    "git_blob_sha1": "77dad308d74429f400c7567309ab919aaef075d4",
+    "lfs_oid": null,
+    "path": "model.safetensors.index.json",
+    "sha256": "ac83ed75d71020825ebf50fbb4061fb8c1f2ab824c4864c698562f7e28494043",
+    "size_bytes": 104491,
+    "tree_oid": "77dad308d74429f400c7567309ab919aaef075d4",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/model.safetensors.index.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:28+00:00",
+    "git_blob_sha1": "2b156ae9110a5966c5c6f266075a0f2fae7768d0",
+    "lfs_oid": null,
+    "path": "audio_tokenizer/chat_template.jinja",
+    "sha256": "cf1a0a0e5cbc6a6a1b609f19f6db5483fddf978e6c8c8453ca2549bed02b7425",
+    "size_bytes": 5588,
+    "tree_oid": "2b156ae9110a5966c5c6f266075a0f2fae7768d0",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/audio_tokenizer/chat_template.jinja"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:29+00:00",
+    "git_blob_sha1": "e0d6fd1b099bf9d1c0033a7d13ab9c384d2430dc",
+    "lfs_oid": null,
+    "path": "audio_tokenizer/config.json",
+    "sha256": "e0702adae37947e0c980c38bae58ffa0d48bd492d523afe814aa4d73f008c7d1",
+    "size_bytes": 1215,
+    "tree_oid": "e0d6fd1b099bf9d1c0033a7d13ab9c384d2430dc",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/audio_tokenizer/config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:29+00:00",
+    "git_blob_sha1": "c6911e35d75e2ddedbec5716154f0c19442e29e6",
+    "lfs_oid": null,
+    "path": "audio_tokenizer/generation_config.json",
+    "sha256": "5e14358a9bd50424310fe2c5afabf6a131c3a9b452c9322f7d9ee6f9ff6b8ef9",
+    "size_bytes": 149,
+    "tree_oid": "c6911e35d75e2ddedbec5716154f0c19442e29e6",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/audio_tokenizer/generation_config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:29+00:00",
+    "git_blob_sha1": "2063165454f0c8e509fda3de638f065df46165d8",
+    "lfs_oid": null,
+    "path": "audio_tokenizer/tokenizer_config.json",
+    "sha256": "ac41378c3257a15e31d5afa7a8e3e6ca9c2ec6702adf7a93064f8dae384939df",
+    "size_bytes": 6059,
+    "tree_oid": "2063165454f0c8e509fda3de638f065df46165d8",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/audio_tokenizer/tokenizer_config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:30+00:00",
+    "git_blob_sha1": "9d25559ad598fe16076bec44f755f6bec688bbd2",
+    "lfs_oid": null,
+    "path": "dflash/config.json",
+    "sha256": "3a65305bd8d9a8bef6ca46866567be1c56f0a867fc802f4749f1333a976590ef",
+    "size_bytes": 1242,
+    "tree_oid": "9d25559ad598fe16076bec44f755f6bec688bbd2",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/dflash/config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:30+00:00",
+    "git_blob_sha1": "0aea03fe130ec6070d8d94f8d11c37ee9885782f",
+    "lfs_oid": null,
+    "path": "dflash/dflash.py",
+    "sha256": "da5ab1738b954800950405131f1d1d97c3345f37e32676d511d3a25dfddd9d75",
+    "size_bytes": 14255,
+    "tree_oid": "0aea03fe130ec6070d8d94f8d11c37ee9885782f",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/dflash/dflash.py"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:31+00:00",
+    "git_blob_sha1": "c15812ce9c7ecc237b0554e86f080df20a517472",
+    "lfs_oid": null,
+    "path": "dflash/model.safetensors.index.json",
+    "sha256": "89ec75e9a3f65afc44134d9f871c4553ccf3a7269ec127571bed5016690851d5",
+    "size_bytes": 3870,
+    "tree_oid": "c15812ce9c7ecc237b0554e86f080df20a517472",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/dflash/model.safetensors.index.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:31+00:00",
+    "git_blob_sha1": "b27a27e03bd1f9544592f36002951efcfcf10a5b",
+    "lfs_oid": null,
+    "path": "mtp/config.json",
+    "sha256": "09c00efaf3b92d477a9c5371b60fb3ad4f80708bdc5fc1e162026c75ecab8b83",
+    "size_bytes": 2358,
+    "tree_oid": "b27a27e03bd1f9544592f36002951efcfcf10a5b",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/mtp/config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:32+00:00",
+    "git_blob_sha1": "9e0d9673d479e810bb2cd0ff8e581e9f16f702b4",
+    "lfs_oid": null,
+    "path": "omnimodal/config.json",
+    "sha256": "61bea4a0f7a0dd8969f8cae528761e26b697dd12ff63e98804c3f0945492e621",
+    "size_bytes": 8068,
+    "tree_oid": "9e0d9673d479e810bb2cd0ff8e581e9f16f702b4",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/omnimodal/config.json"
+  },
+  {
+    "fetched_at": "2026-09-22T09:04:32+00:00",
+    "git_blob_sha1": "72e2afe543baf79a79f6f6b72f1e955239c860b4",
+    "lfs_oid": null,
+    "path": "omnimodal/manifest.json",
+    "sha256": "f0ce7e551f23437178477e1ddbe25c7cf07c29ea1bbfcea3e31857f466f2b5f8",
+    "size_bytes": 386,
+    "tree_oid": "72e2afe543baf79a79f6f6b72f1e955239c860b4",
+    "url": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP/resolve/95d80053eb22112f2acc4244330eb67b4f534c94/omnimodal/manifest.json"
+  }
+]
