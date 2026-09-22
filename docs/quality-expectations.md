@@ -39,8 +39,12 @@ perplexity.
 - No known numerical correctness bug; no unacceptable increase in catastrophic
   failures (catastrophes tracked separately from mean scores).
 - Tool-protocol behavior essentially unchanged; stable overnight C8 operation.
-- Weight budget 100–105 GiB; C8 floor >= 65 aggregate tok/s (estimates page);
-  useful RAM margin retained.
+- Weight budget: the matched sweep band (~90 GiB, 96,636,764,160 B +/-2%)
+  with a 105 GiB production ceiling (the earlier spec figure of 100–105 GiB is
+  superseded by the quality-first ~90 GiB sweep directive); C8 floor >= 65
+  aggregate tok/s (estimates page); useful RAM margin retained.
+  Enforcement machinery: `src/mimo_halo/evaluation/gates.py` (fail-closed:
+  estimates never pass; unmeasured never promotes).
 
 ## Decision rules already fixed
 
