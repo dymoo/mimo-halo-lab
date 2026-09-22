@@ -1,0 +1,75 @@
+# Classification rubric for correlated kernels: which Phase-1 observations
+# transfer to the independent MiMo runtime, which are Qwen/Flash-Next
+# specifics, which are irrelevant.  Applied AFTER the match ladder in
+# kernel_correlation_plan.yaml; never rewrites catalogue likely_operation.
+
+rubric_version: 1
+
+labels:
+  gfx1151-general:
+    question: Does this encode a hardware-level optimisation of RDNA3.5 itself?
+    include_when:
+      - "motif touches gfx1151 primitives: wave32 scheduling, dual-issue
+        (v_dual_*), LDS bank/ping-pong, buffer-load pathings, WMMA/dot2 tensor
+        pipes, scalar-cache hit strategies, DPP/direct-valu tricks"
+      - "kernel shape is architecture-level (split-K by CU count, LDS tile for
+        the CU matrix, pipelining across VALU/SMEM)"
+    evidence: [catalogue.likely_operation, disasm evidence offsets,
+               occupancy_and_memory_throughput_counters]
+    action: transferable principle -> candidate for independent MiMo design
+
+  moe-general:
+    question: Is it an MoE routing/gather/scatter/expert-MLP pattern that any
+              MoE runtime needs?
+    include_when:
+      - likely_operation in [moe_routing, expert_gather_scatter]
+      - "top-k softmax/gating shapes (small reductions + masked stores) feeding
+        token-to-expert index math"
+      - "expert-table gather fan-out over weights resident in VRAM/LLC"
+    evidence: ["s_load kernarg configs", "indexed load/store fan-out",
+               "cmp-masked stores", "dispatch grid patterns in kernel_trace"]
+    action: transferable pattern -> MiMo MoE kernels are fair game to reinvent
+
+  qwen-specific-transferable:
+    question: Qwen/Flash-Next-specific but still meaningful for our model?
+    include_when:
+      - "shapes/dtypes hard-coded to Qwen dims (head_dim 128/80, GQA/MQA group
+        ratios, vocab 150k+ projections, q4cp/q8 checkpoint packings)"
+      - speculative-verification tuned to Qwen draft heads
+      - "kernels whose benefit depends on Qwen weight layout, yet the trick
+        (e.g. fused dequant+dot2 for i4 row-packing) generalises once re-fitted
+        to MiMo shapes"
+    evidence:
+      - kernarg_segment_size / arg layouts
+      - "quant format markers (v_bfe/v_and nibble extracts), tensor-repack
+        motifs, dims visible in grid sizes from kernel_trace"
+    action: record technique + required re-fit (shapes, pack format); never copy
+            layout constants blindly
+
+  irrelevant-to-miMo:
+    question: Should we deliberately NOT study this?
+    include_when:
+      - "third-party BLAS/convolution libraries (rocBLAS, hipBLASLT, MIOpen
+        ckGroupedConv, rocJPEG, hipfile) - provenance via inputs[].path"
+      - host stubs, hip runtime glue, copy/fill/blit kernels
+      - "metrics below noise (<0.1% GPU busy across the frozen matrix) and no
+        architectural novelty"
+    evidence:
+      - inputs[].path third-party paths
+      - low total_gpu_ns share
+    action: "excluded from hypotheses; still listed in correlation.csv for
+      completeness (negative results are results)"
+
+decision_notes:
+  precedence: "irrelevant-to-miMo > gfx1151-general > moe-general >
+    qwen-specific-transferable"
+    # provenance/irrelevance wins first; otherwise prefer hardware-general
+    # explanations over model-specific ones (strongest transfer value)
+  disagreement: "record BOTH labels with evidence pointers in the hypothesis
+    artefact; do not collapse ambiguity silently"
+  every_hypothesis_needs:
+    - observation
+    - inferred technique
+    - expected benefit
+    - experiment required
+  hypothesis_note: per the Phase-1 contract template

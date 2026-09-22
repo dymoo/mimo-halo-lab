@@ -1,0 +1,14 @@
+# rocprofv3 counter selection input (text format: one `pmc:` row = one
+# hardware pass).  Used by capture_rocprofv3.sh only after the desired
+# counters below have been confirmed present in `rocprofv3 --list-avail`.
+#
+# Coverage map (Phase-2 questions each row answers):
+#   waves/occupancy     -> SQ_WAVES, SQ_WAIT_ANY, OccupancyPercent
+#   VALU/SCALAR mix     -> SQ_INSTS_VALU, SQ_INSTS_SCALAR, SQ_WAVE_CYCLES
+#   memory throughput   -> FETCH_SIZE, WRITE_SIZE (+ TCC_* where available)
+#   overall busy        -> GRBM_COUNT, GRBM_GUI_ACTIVE
+# SCLK/MCLK/power/temps are NOT pmc counters: amd-smi poller covers them.
+pmc: GRBM_COUNT GRBM_GUI_ACTIVE SQ_WAVES SQ_WAIT_ANY
+pmc: SQ_WAVE_CYCLES SQ_INSTS_VALU SQ_INSTS_SCALAR SQ_INSTS_VMEM_RD
+pmc: FETCH_SIZE WRITE_SIZE
+pmc: OccupancyPercent

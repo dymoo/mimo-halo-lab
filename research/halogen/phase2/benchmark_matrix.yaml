@@ -1,0 +1,55 @@
+# Fixed benchmark matrix for Phase-2 (hardware-gated).
+# The grid is FROZEN: every cell is measured for MiMo and Halogen alike so
+# kernel-catalogue correlation compares like with like.  Do not add/remove
+# cells without recording a matrix_version bump below.
+
+matrix_version: 1
+frozen: true
+
+axes:
+  prompt_length_tokens: [128, 1024, 4096, 16384]
+  generation_length_tokens: [1, 128, 1024]
+  batch_size: [1, 8]
+  context_window_tokens: [32768, 131072]
+  quant_format: [q4, q8, f16]        # weights as shipped by each runtime
+  speculative_decoding: [on, off]
+  corpus_kind: [repetitive_code, novel_code, prose]
+
+grid:
+  full_factorial: true
+  cells: 864                           # 4*3*2*2*3*2*3
+  # budget guard: if runtime forces a reduction, drop generation_length first,
+  # then prompt_length (record any reduction in results/matrix_execution.yaml)
+  reduction_priority: [generation_length_tokens, prompt_length_tokens]
+
+corpora:
+  repetitive_code: |
+    The same idiomatic Python function repeated with trivial identifier
+    renames; stresses draft/verify agreement under speculative decoding.
+  novel_code: |
+    Held-out, never-seen-before source files from unrelated projects;
+    low n-gram overlap with any training data we control.
+  prose: |
+    Natural-language exposition; token distribution unlike code, probes
+    KV-cache and activation paths the code corpora never touch.
+
+execution:
+  warmup_runs: 1
+  measured_runs: 3                     # per cell, report median
+  seeds: [7, 11, 13]                   # deterministic sampling (temperature 0
+                                        # where runtime supports it; else seeded)
+  capture: ./capture_rocprofv3.sh      # every measured run goes through here
+  scenario_record_fields:
+    - cell_id                          # stable hash of all 7 axis values
+    - runtime                          # halogen | mimo
+    - matrix_version
+    - warmup_index | measured_index
+    - capture_dir
+  ordering: interleaved                # alternate halogen/mimo per cell to
+                                        # cancel thermal/drift effects
+  cool_down_s: 30                      # between cells (power/temps return to idle)
+
+acceptance:
+  - every cell has both runtimes or is listed in matrix_execution.yaml gaps
+  - gpu_metrics.csv + host_metrics.csv present for every measured run
+  - pmc_available.txt + pmc_unavailable_notes.txt archived per agent
