@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import struct
 import sys
 import tempfile
@@ -1546,6 +1547,157 @@ class AllNativeBuildTest(unittest.TestCase):
             with self.assertRaisesRegex(BuildError, "numpy is required"):
                 build_candidate(**build_kwargs(self.fx, self.base / "out-none"))
         self.assertFalse((self.base / "out-none").exists())
+
+
+class CliBuildTest(unittest.TestCase):
+    """python -m mimo_halo.build: one command, selection -> verified artifact."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.base = Path(self._tmp.name)
+        self.fx = make_fixture(self.base)
+        # A sweep-config-shaped file carrying the fixture recipe, so the CLI's
+        # config -> recipe extraction path is exercised end to end.
+        recipe = make_recipe()
+        self.config = write_json(
+            self.base / "sweep.json",
+            {
+                "source_weights": {"digest_basis": DIGEST_BASIS},
+                "candidates": [recipe],
+            },
+        )
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _argv(self, out_name, **over):
+        from mimo_halo.build.__main__ import main as build_main  # noqa: F401
+
+        argv = [
+            "--inventory", str(self.fx["inventory"]),
+            "--source-root", str(self.fx["root"]),
+            "--out", str(self.base / out_name),
+            "--config", str(self.config),
+            "--candidate-id", "fixture-reap25-mixed-q3",
+            "--selection", str(self.base / "selection.json"),
+            "--seed", "7",
+            "--environment", str(self.fx["environment"]),
+            "--dataset", DATASET_HASH,
+            "--calibration-config", str(self.fx["calibration"]),
+        ]
+        for key, value in over.items():
+            argv.extend([ "--" + key.replace("_", "-"), str(value) ])
+        return argv
+
+    def test_cli_builds_from_selection_and_prints_summary(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = build_main(self._argv("out-cli"))
+        self.assertEqual(code, 0, out.getvalue())
+        summary = json.loads(out.getvalue())
+        self.assertEqual(summary["status"], "verified")
+        self.assertEqual(summary["resident_weight_bytes"], RESIDENT)
+        self.assertEqual(summary["record"], str(self.base / "out-cli") + "/candidate.json")
+        # The selection was turned into a prune map beside --out (never inside).
+        generated = Path(str(self.base / "out-cli") + ".prune_map.json")
+        self.assertTrue(generated.is_file())
+        map_doc = json.loads(generated.read_text())
+        self.assertEqual(map_doc["mode"], "external_selection")
+        # Sidecars and the adapted config are present in the artifact.
+        for name in ("manifest.json", "checksums.txt", "config.json",
+                     "quant_assignment.json", "expert_map.json"):
+            self.assertIn(name, os.listdir(self.base / "out-cli"))
+        wcfg = json.loads((self.base / "out-cli" / "config.json").read_text())
+        self.assertEqual(wcfg["n_routed_experts"], 6)
+
+    def test_cli_unknown_candidate_id_exits_one(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        err = io.StringIO()
+        argv = self._argv("out-unknown")
+        idx = argv.index("fixture-reap25-mixed-q3")
+        argv[idx] = "no-such-candidate"
+        with contextlib.redirect_stderr(err):
+            code = build_main(argv)
+        self.assertEqual(code, 1)
+        self.assertIn("not in config", err.getvalue())
+        self.assertFalse((self.base / "out-unknown").exists())
+
+    @staticmethod
+    def _tree_state(root: Path) -> dict:
+        return {
+            path.relative_to(root).as_posix(): sha(path.read_bytes())
+            for path in sorted(root.rglob("*"))
+            if path.is_file()
+        }
+
+    def test_cli_invalid_out_inside_source_leaves_source_unchanged(self):
+        # Preflight must refuse BEFORE publishing the derived map, so an
+        # --out inside the verified source tree never creates any file there.
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        before = self._tree_state(self.fx["root"])
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = build_main(self._argv(str(self.fx["root"] / "sneaky")))
+        self.assertEqual(code, 1, err.getvalue())
+        self.assertIn("outside the verified source root", err.getvalue())
+        after = self._tree_state(self.fx["root"])
+        self.assertEqual(after, before, "source tree bytes/names must not change")
+        self.assertFalse(
+            (self.fx["root"] / "sneaky.prune_map.json").exists(),
+            "derived prune map must never be written inside the source root",
+        )
+        self.assertFalse((self.fx["root"] / "sneaky").exists())
+
+    def test_cli_never_clobbers_existing_map_and_stays_retryable(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        out = self.base / "out-preserve"
+        map_path = Path(str(out) + ".prune_map.json")
+        # (a) unrelated existing file with different content is preserved.
+        map_path.write_text('{"unrelated": true}\n')
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = build_main(self._argv(str(out)))
+        self.assertEqual(code, 1, err.getvalue())
+        self.assertIn("refusing to overwrite", err.getvalue())
+        self.assertEqual(map_path.read_text(), '{"unrelated": true}\n')
+
+        # (b) successful run publishes the map; a retry after cleaning the
+        # output dir reuses the identical map bytes without rewriting.
+        map_path.unlink()
+        out_txt = io.StringIO()
+        with contextlib.redirect_stdout(out_txt):
+            self.assertEqual(build_main(self._argv(str(out))), 0)
+        published = map_path.read_bytes()
+        self.assertTrue(published)
+        shutil.rmtree(out)
+        # (c) a non-empty output dir is refused BEFORE touching the map.
+        out.mkdir()
+        (out / "stale.bin").write_bytes(b"stale")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = build_main(self._argv(str(out)))
+        self.assertEqual(code, 1)
+        self.assertIn("absent or empty", err.getvalue())
+        self.assertEqual(map_path.read_bytes(), published, "map must be untouched")
+        # ...clean the output and the identical retry succeeds, map unchanged.
+        shutil.rmtree(out)
+        out_txt = io.StringIO()
+        with contextlib.redirect_stdout(out_txt):
+            self.assertEqual(build_main(self._argv(str(out))), 0)
+        self.assertEqual(map_path.read_bytes(), published, "identical map reused")
 
 
 if __name__ == "__main__":
