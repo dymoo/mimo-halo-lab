@@ -117,7 +117,12 @@
       "repo_identifier": 63,
       "starting_revision": 151
     },
-    "frozen_count": 102
+    "frozen_count": 102,
+    "frozen_registry_count": 102,
+    "supported_oracle_provenance": 36,
+    "provisional_oracle_provenance": 66,
+    "readiness": "NOT validated-for-task-success",
+    "provenance_audit_ref": "manifests/datasets/golden-freeze-summary.json#provenance_audit"
   },
   "partition": {
     "task_groups_assigned": 2527,

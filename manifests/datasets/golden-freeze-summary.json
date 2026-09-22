@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "kind": "mimo-halo-golden-freeze-summary",
-  "generated_utc": "2026-09-22T17:23:58Z",
+  "generated_utc": "2026-09-22T18:18:03Z",
   "date": "2026-09-22",
   "note": "aggregates and hashed group ids only; no content, no absolute paths, no repo identifiers; per-group evidence with session-id-hash + event-index pointers is held privately",
   "counts_in": {
@@ -333,5 +333,28 @@
   "round2_linkage_refusals": {
     "linkage_revision_mismatch": 6408
   },
-  "truth_set_acceptance": "bank is reserved and frozen by tooling only; final truth-set acceptance remains with the user, who audits and may veto via the documented migrate-reservations migration path"
+  "truth_set_acceptance": "bank is reserved and frozen by tooling only; final truth-set acceptance remains with the user, who audits and may veto via the documented migrate-reservations migration path",
+  "frozen_registry_count": 102,
+  "supported_oracle_provenance": 36,
+  "provisional_oracle_provenance": 66,
+  "readiness": "NOT validated-for-task-success",
+  "provenance_audit": {
+    "result": "provenance audit of the 102 frozen registry rows (oracle-registry + freeze-manifest metadata only; no raw-corpus pass; no re-freeze): 36 rows have supported member-session oracle provenance (the round-1 complete set), 65 rows rest on borrowed cwd-only or repo+revision-only linkage and 1 row on unrecorded linkage, i.e. 66 provisional; none of the 102 has demonstrated executable-task oracle validation",
+    "reasons": {
+      "supported_member_session_round1": "oracle recorded in a group member session (same cwd plus same prompt-hash or same issue ref)",
+      "borrowed_cwd_only": "linked only by same hashed cwd with a different first prompt; prompt/issue never matched - not same-task proof",
+      "borrowed_repo_revision_only": "linked only by repo+revision equality - not same-task proof",
+      "provisional_linkage_unrecorded": "round-2 oracle without a recorded linkage field; not reconstructible from registry metadata"
+    },
+    "counts": {
+      "borrowed_cwd_only": 63,
+      "supported_member_session_round1": 36,
+      "borrowed_repo_revision_only": 2,
+      "provisional_linkage_unrecorded": 1,
+      "frozen_total": 102,
+      "borrowed_or_provisional_total": 66
+    },
+    "private_audit_path": "$MIMO_LAB/traces/oracles/oracle-provenance-audit.json",
+    "no_refreeze": "threshold unchanged at 50; no re-freeze; original freeze history, hashes and frozen set preserved; the 36-row supported cohort may inform provisional discovery but must never be labelled a completed >=50 golden bank"
+  }
 }

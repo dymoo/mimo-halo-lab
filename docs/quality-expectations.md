@@ -20,9 +20,13 @@ rounded up.
 ## The decisive metric
 
 **Long-horizon held-out task success is the decisive metric.** It is measured on
-the frozen golden bank (102 tasks, hashed ids in
+the frozen golden bank — currently 102 reserved frozen records (hashed ids in
 `manifests/datasets/golden-freeze-summary.json`, never used for calibration,
-imatrix, QAT, or quant search) with the paired statistical machinery
+imatrix, QAT, or quant search), of which only 36 carry supported
+member-session oracle provenance and 66 are provisional (borrowed or
+unrecorded linkage), and none has yet demonstrated executable-task oracle
+validation, so the registry is **not** a validated ≥50-task golden bank —
+measured with the paired statistical machinery
 (`src/mimo_halo/evaluation/paired.py`: exact McNemar, bootstrap CIs, win/loss
 tables). Perplexity, KL and agreement are diagnostic screens — they rank cheap
 candidates during staged evaluation but they do not crown the winner.
