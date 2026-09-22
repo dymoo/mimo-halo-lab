@@ -1,0 +1,308 @@
+{
+  "schema_version": 1,
+  "protocol_id": "compression-sweep-eval-protocol",
+  "title": "Staged evaluation protocol for the REAP/precision compression sweep: tacodevs-comparable axis plus coding-agent-heavy axis",
+  "status": "design; no model runs yet; kill thresholds uncalibrated",
+  "counterpart_doc": "docs/experiments/eval-protocol.md",
+  "extends_by_reference": {
+    "evaluation_methodology": {
+      "path": "docs/evaluation-methodology.md",
+      "used_sections": ["1 data contract", "3 statistics", "4 evaluation-levels ladder", "5 golden decision metric", "6 negative controls and release gates"],
+      "modified": false
+    },
+    "datasets": {
+      "path": "docs/datasets.md",
+      "used_sections": ["partitioning", "golden bank freeze", "taxonomies (capability/language/difficulty closed enums)"],
+      "modified": false
+    },
+    "paired_tool": {
+      "path": "src/mimo_halo/evaluation/paired.py",
+      "used": ["task-cluster bootstrap CIs", "exact McNemar", "wins/losses/ties", "reference-anchored slices", "closed context_bucket and turns_bucket enums"],
+      "modified": false
+    },
+    "task_outcome_schema": {
+      "path": "schemas/task-outcome.schema.json",
+      "used": ["record contract for stage-3/stage-4 runner outcomes"],
+      "modified": false
+    }
+  },
+  "candidates": {
+    "source_model": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+    "source_revision": "5711b268169967567844e1e560e8a3966da959b1",
+    "experts_per_layer_original": 256,
+    "reap_definition": "REAPxx = percent of experts pruned per layer; retained = 256 minus rounded prune count, stated explicitly",
+    "entry_points": [
+      {"id": "REAP25", "prune_percent": 25, "retained_per_layer": 192},
+      {"id": "REAP30", "prune_percent": 30, "retained_per_layer": 179},
+      {"id": "REAP35", "prune_percent": 35, "retained_per_layer": 166},
+      {"id": "REAP40", "prune_percent": 40, "retained_per_layer": 154},
+      {"id": "REAP45", "prune_percent": 45, "retained_per_layer": 141}
+    ],
+    "tacodevs_role": "prior information only; never a build source; never requantized"
+  },
+  "tacodevs_reference": {
+    "baseline_id": "tacodevs-reap25-mixed3bit-gptq-mtp",
+    "archive": "manifests/baselines/tacodevs-reap25/",
+    "pinned_revision": "95d80053eb22112f2acc4244330eb67b4f534c94",
+    "sources": {
+      "card": "manifests/baselines/tacodevs-reap25/raw/README.md",
+      "eval_json": "manifests/baselines/tacodevs-reap25/raw/compression_eval.json",
+      "normalized": "manifests/baselines/tacodevs-reap25/normalized.json#published_evaluation",
+      "doc": "docs/baselines/tacodevs-reap25.md"
+    },
+    "corpus_protocol": {
+      "calibration": {"sequences": 256, "tokens_per_sequence": 2048, "total_tokens": 524288, "families": ["evol-codealpaca", "Mixture-of-Thoughts", "SWE-smith trajectories", "glaive function calling", "UltraChat"], "rendered_with": "model chat template", "source": "card"},
+      "heldout": {"sequences": 31, "tokens_per_sequence": 2048, "nominal_tokens": 63488, "published_scored_tokens": 63457, "domain_label": "held-out agentic/coding mix", "disjoint_from_calibration": "claimed", "source": "card + eval_json"}
+    },
+    "metrics": [
+      {"metric": "heldout_ppl_original", "value": 9.271, "unit": "perplexity", "source": "card table"},
+      {"metric": "heldout_ppl_candidate", "value": 9.528511047363281, "card_rounded": 9.529, "unit": "perplexity", "source": "eval_json ppl; card table"},
+      {"metric": "heldout_kl", "value": 0.8314559955519677, "card_rounded": 0.8315, "unit": "nats_per_token_assumed", "direction": "original||candidate", "source": "eval_json kl_base_to_quant; card table"},
+      {"metric": "heldout_top1_agreement", "value": 0.7949004837921743, "card_percent": 79.5, "unit": "fraction_of_scored_positions", "source": "eval_json top1_agree; card table"},
+      {"metric": "on_policy", "unit_conventions": {"nll": "nats_per_assistant_token_assumed", "kl": "nats_per_token_assumed", "agreement": "percent"}, "responses": 40, "scored": "assistant tokens only", "reference": "real MiMo-V2.6-Flash via API", "table": [
+        {"group": "ALL", "tokens": 24136, "original_nll": 0.530, "candidate_nll": 0.609, "delta_nll": 0.079, "kl": 0.105, "top1_agree_percent": 90.4},
+        {"group": "code", "tokens": 10627, "original_nll": 0.511, "candidate_nll": 0.589, "delta_nll": 0.078, "kl": 0.106, "top1_agree_percent": 90.8},
+        {"group": "agent", "tokens": 4786, "original_nll": 0.695, "candidate_nll": 0.779, "delta_nll": 0.084, "kl": 0.126, "top1_agree_percent": 88.5},
+        {"group": "reasoning", "tokens": 3815, "original_nll": 0.313, "candidate_nll": 0.358, "delta_nll": 0.045, "kl": 0.052, "top1_agree_percent": 94.2},
+        {"group": "general", "tokens": 4908, "original_nll": 0.580, "candidate_nll": 0.682, "delta_nll": 0.102, "kl": 0.125, "top1_agree_percent": 88.5}
+      ], "source": "card on-policy table"},
+      {"metric": "task_success", "value": null, "source": "normalized published_evaluation.task_success"},
+      {"metric": "independently_reproduced", "value": false, "source": "normalized published_evaluation"}
+    ],
+    "published_gaps_and_our_choices": [
+      {"gap": "calibration/holdout family proportions, sample counts and sample identities", "there": "unspecified", "our_choice": "same sizes (256x2048 calibration-equivalent, 31x2048 holdout), uniform per-family sampling, private hash manifest, per-family counts recorded"},
+      {"gap": "63457 scored vs 63488 nominal held-out tokens", "there": "unexplained", "our_choice": "record exact scored-token count; never substitute the nominal size"},
+      {"gap": "held-out domain tagging method for 'agentic/coding mix'", "there": "unspecified", "our_choice": "family tag per item; per-family metrics reported alongside aggregate"},
+      {"gap": "disjointness verification", "there": "claimed only", "our_choice": "prove disjointness from each candidate's build-calibration corpus by manifest hash"},
+      {"gap": "PPL aggregation (global token-mean vs per-sequence mean)", "there": "unspecified", "our_choice": "primary = exp(global mean NLL over scored tokens); per-sequence mean secondary; mean NLL always reported next to PPL"},
+      {"gap": "KL log base, vocabulary scope, temperature", "there": "unspecified", "our_choice": "natural log, full vocabulary, temperature 1, direction original||candidate, mean over scored tokens"},
+      {"gap": "top-1 tie handling and scored position set", "there": "unspecified", "our_choice": "argmax over full vocab, lowest-index tie-break, every position scored with identical masks for both models"},
+      {"gap": "on-policy prompt set, sampling parameters, response length cap", "there": "unspecified", "our_choice": "fixed prompt manifest; generate from original official weights (no unversioned API); temperature/top-p/seed/max-tokens recorded; at least 40 responses"},
+      {"gap": "on-policy slice membership (code/agent/reasoning/general labeling)", "there": "unspecified", "our_choice": "taxonomy-derived groups (slice_groups below); ALL row is the definition-identical anchor; slices comparable in spirit only"},
+      {"gap": "chat template / tokenizer version pin", "there": "archived but not version-bound in prose", "our_choice": "pin template and tokenizer to official revision 5711b268169967567844e1e560e8a3966da959b1, record hashes"},
+      {"gap": "reference logits precision and hardware", "there": "unspecified", "our_choice": "original weights at stored precision, FP32 logit accumulation, hardware/runtime recorded per run"},
+      {"gap": "seeds / batching determinism", "there": "unspecified", "our_choice": "deterministic seeds in the run manifest; teacher-forced scoring is order-independent"},
+      {"gap": "tensor recipe metadata consistency (card says embeddings 8-bit affine g64; eval_json says embed_bits 16; eval_json alloc name alloc_k64rel.json vs archived compression_alloc.json)", "there": "internally inconsistent", "our_choice": "take no tensor recipe from tacodevs metadata; record the inconsistency instead of resolving it; our recipes come from our own builder"},
+      {"gap": "benchmark / task-success scores", "there": "none published (task_success null)", "our_choice": "stages 3-4 have no tacodevs counterpart; never compare our benchmark scores to a number they did not publish"}
+    ],
+    "publisher_claims_recorded_not_adopted": [
+      "card: any MoE perturbation (even 8-bit attention) sits at KL~=0.4 on foreign text because top-8 routing flips; only on-policy deltas are comparable across variants",
+      "card: MXFP4 QAT training and no BF16 release (officially unconfirmed)",
+      "card: experts average 3.29 bits/weight (computed 3.2926, agrees)"
+    ]
+  },
+  "corpora": [
+    {
+      "slice_id": "stage1-holdout-public-mix",
+      "role": "stage-1 held-out perplexity/KL/top-1, size-comparable to tacodevs protocol",
+      "families": ["evol-codealpaca", "Mixture-of-Thoughts", "SWE-smith trajectories", "glaive function calling", "UltraChat"],
+      "counts": {"sequences": 31, "tokens_per_sequence": 2048, "target_scored_tokens": 63488, "actual_scored_tokens": null},
+      "manifest_ref": "$MIMO_LAB/eval/stage1-holdout/manifest.json",
+      "manifest_status": "to be built; never in Git; disjoint from every candidate's build-calibration corpus by manifest hash"
+    },
+    {
+      "slice_id": "stage2-validation-trajectories",
+      "role": "stage-2 representative code/reasoning/agent trajectory contexts and slice labels",
+      "partition": "validation",
+      "counts": {"task_groups": 258, "episodes": null},
+      "manifest_ref": "$MIMO_LAB/traces/partition/frozen-assignments.json",
+      "content_policy": "partition names and counts only in Git; no trace content, prompts, repo identifiers or paths"
+    },
+    {
+      "slice_id": "stage2-torture-longcontext",
+      "role": "long-context degradation slices",
+      "partition": "torture",
+      "counts": {"task_groups": 117, "episodes": null},
+      "manifest_ref": "$MIMO_LAB/traces/partition/frozen-assignments.json",
+      "empty_bucket_rule": "buckets with no material are reported empty with counts, never invented"
+    },
+    {
+      "slice_id": "stage3-validation-shorttasks",
+      "role": "short structured tasks (levels ladder level 4) and reduced benchmark prompts",
+      "partition": "validation",
+      "counts": {"task_groups": 258, "built_tasks": null},
+      "manifest_ref": null
+    },
+    {
+      "slice_id": "stage4-golden",
+      "role": "final-confirmation paired task success only; never calibration or method selection",
+      "partition": "golden",
+      "counts": {"reserved_task_groups": 235, "eligible_task_groups": 0, "bank_bounds": {"min_tasks": 50, "max_tasks": 200}},
+      "bank_status": "not_ready",
+      "manifest_ref": "$MIMO_LAB/traces/golden/eligibility.json",
+      "availability": "unavailable until reserved+eligible >= 50; reported unavailable, never substituted"
+    },
+    {
+      "slice_id": "excluded-partitions",
+      "role": "never evaluation input",
+      "counts": {"pruning_task_groups": 922, "quant_task_groups": 486, "recovery_task_groups": 507, "quarantined_identity_failures": 58}
+    }
+  ],
+  "counts_source": "manifests/datasets/discovery-summary.json (2525 task groups assigned)",
+  "metric_definitions": [
+    {"id": "heldout_ppl", "name": "Held-out perplexity", "unit": "perplexity (dimensionless)", "axis": "tacodevs_comparable", "definition": "exp of global mean NLL in nats over all scored held-out tokens; mean NLL reported as heldout_nll", "source": "tacodevs card Quality table; our choice on aggregation"},
+    {"id": "heldout_delta_ppl", "name": "Perplexity delta vs original", "unit": "perplexity", "axis": "tacodevs_comparable", "definition": "candidate PPL - original PPL on the identical holdout"},
+    {"id": "heldout_nll", "name": "Held-out mean NLL", "unit": "nats_per_token", "axis": "our_axis", "definition": "global mean negative log-likelihood, natural log, full vocab, T=1"},
+    {"id": "heldout_kl", "name": "Held-out KL(original || candidate)", "unit": "nats_per_token", "axis": "tacodevs_comparable", "definition": "mean over scored tokens of KL between full-vocabulary softmaxes at temperature 1, natural log"},
+    {"id": "heldout_top1_agreement", "name": "Held-out top-1 agreement", "unit": "percent", "axis": "tacodevs_comparable", "definition": "percent of scored positions where argmax(candidate) == argmax(original), lowest-index tie-break, identical position set"},
+    {"id": "onpolicy_nll", "name": "On-policy NLL (assistant tokens)", "unit": "nats_per_assistant_token", "axis": "tacodevs_comparable", "definition": "NLL of reference-generated assistant spans under a model; prompt/tool/system tokens never scored"},
+    {"id": "onpolicy_delta_nll", "name": "On-policy NLL delta", "unit": "nats_per_assistant_token", "axis": "tacodevs_comparable", "definition": "candidate NLL - original NLL on identical scored spans"},
+    {"id": "onpolicy_kl", "name": "On-policy KL(original || candidate)", "unit": "nats_per_token", "axis": "tacodevs_comparable", "definition": "same definition as heldout_kl on assistant spans"},
+    {"id": "onpolicy_top1_agreement", "name": "On-policy top-1 agreement", "unit": "percent", "axis": "tacodevs_comparable", "definition": "same definition as heldout_top1_agreement on assistant spans; ALL group is the definition-identical tacodevs anchor"},
+    {"id": "trajectory_onpolicy_nll", "name": "On-policy NLL over agent trajectories", "unit": "nats_per_assistant_token", "axis": "our_axis", "definition": "reference-generated continuations over validation/torture trajectory prefixes, scored per slice group and context bucket"},
+    {"id": "slice_agreement", "name": "Agreement by slice group (code/reasoning/agent/general/ALL)", "unit": "percent", "axis": "our_axis", "definition": "top-1 agreement restricted to scored positions whose episode primary_capability maps to the group; ALL row additionally comparable to tacodevs"},
+    {"id": "slice_delta_nll", "name": "NLL delta by slice group", "unit": "nats_per_assistant_token", "axis": "our_axis", "definition": "candidate - original mean NLL within the group"},
+    {"id": "longcontext_delta_nll", "name": "Long-context degradation (per context bucket)", "unit": "nats_per_token", "axis": "our_axis", "definition": "candidate - original NLL for segments whose prefix length falls in the bucket; slope = delta(128K+) - delta(<8K)"},
+    {"id": "longcontext_delta_agreement", "name": "Long-context agreement degradation (per context bucket)", "unit": "percentage_points", "axis": "our_axis", "definition": "candidate top-1 agreement - original top-1 agreement within bucket"},
+    {"id": "pathology_rate", "name": "Adjudicated pathological-generation rate", "unit": "incidents_per_100_scored_generations", "axis": "our_axis", "definition": "human-adjudicated (blind to model_id) positives of automated structural flags, by category enum"},
+    {"id": "task_success_paired", "name": "Paired task success", "unit": "rate + task-cluster 95% CI; ratio; wins/losses/ties; exact McNemar where seeds allow", "axis": "our_axis", "definition": "produced by paired.py over stage-3/stage-4 task-outcome JSONL per docs/evaluation-methodology.md sections 3 and 5"},
+    {"id": "negative_control_pass_rate", "name": "Protocol negative-control pass rate", "unit": "percent", "axis": "our_axis", "definition": "record_type=negative_control pass rate reported separately by paired.py (methodology section 6)"},
+    {"id": "catastrophe_rate", "name": "Catastrophe rate on matched pairs", "unit": "rate", "axis": "our_axis", "definition": "observed catastrophic input rate and delta from paired.py catastrophes section"},
+    {"id": "pp_throughput", "name": "Prompt-processing throughput (PP8K/PP32K/PP64K/PP128K)", "unit": "tokens_per_second", "axis": "our_axis", "label": "PRE-OPTIMISATION", "definition": "llama-bench in-process batched prompt processing; never concurrency; commands per docs/hardware-bringup.md section G"},
+    {"id": "decode_concurrency", "name": "Decode concurrency C1/C4/C8", "unit": "aggregate_tokens_per_second", "axis": "our_axis", "label": "PRE-OPTIMISATION", "definition": "real concurrent HTTP requests against one server (C1 single request decode); batch flags never reported as concurrency"},
+    {"id": "theoretical_bytes_per_token", "name": "Theoretical weight bytes read per decoded token", "unit": "bytes", "axis": "our_axis", "definition": "arithmetic from exact inventory (protected non-expert bytes + active expert bytes for top-k routing under the candidate recipe); computed, not measured", "source": "manifests/models/mimo-v2.6-flash-rl/memory-report.json"},
+    {"id": "active_weight_bandwidth", "name": "Active-weight bandwidth", "unit": "GB_per_second", "axis": "our_axis", "definition": "theoretical_bytes_per_token x measured decode tokens-per-second / 1e9; a derived diagnostic only"}
+  ],
+  "slice_groups": {
+    "label_source": "docs/datasets.md primary_capability (closed 22-tag enum)",
+    "mapping": {
+      "code": ["implementation", "refactoring", "code_review", "debugging", "compiler_interpretation", "test_interpretation", "frontend", "backend", "systems", "database"],
+      "reasoning": ["planning", "architecture", "dependency_reasoning", "concurrency", "long_context"],
+      "agent": ["repo_exploration", "tool_use", "shell", "git", "verification", "recovery", "build_tooling"],
+      "general": "residual scored assistant tokens not covered by any labeled episode"
+    },
+    "coverage_rule": "every one of the 22 tags maps to exactly one group; ALL = union of the four groups",
+    "secondary_slices": {"difficulty": ["D0", "D1", "D2", "D3", "D4"], "languages": ["typescript", "javascript", "python", "rust", "go", "cpp", "sql", "shell", "other"]}
+  },
+  "context_buckets": {
+    "enum_source": "src/mimo_halo/evaluation/paired.py CONTEXT_BUCKET_K=1024",
+    "values": ["<8K", "8-16K", "16-32K", "32-64K", "64-128K", "128K+"],
+    "note": "<8K is the assignment's 8K-and-below slice; every bucket publishes its scored-token count; small-N buckets are marked inconclusive, never zero-filled"
+  },
+  "pathology": {
+    "categories": [
+      {"id": "degenerate_repetition", "alias_failure_category": "runtime_corruption"},
+      {"id": "malformed_tool_invocation", "alias_failure_category": "tool"},
+      {"id": "goal_loss", "alias_failure_category": "context_loss"},
+      {"id": "fake_verification", "alias_failure_category": "test"},
+      {"id": "destructive_shell", "alias_failure_category": "tool"},
+      {"id": "uncontrolled_rewrite", "alias_failure_category": "implementation"},
+      {"id": "context_confusion", "alias_failure_category": "context_loss"},
+      {"id": "termination_pathology", "alias_failure_category": "timeout|runtime_corruption"}
+    ],
+    "judges": {
+      "tier_1": "deterministic automated structural detectors (repetition factor, tool-call parse failures, claim-vs-tool-output contradiction, scope checks); never an LLM judge",
+      "tier_2": "human adjudication blind to model_id; counted rate = adjudicated positives; refuted flags counted separately for detector calibration"
+    },
+    "recording": {
+      "private": "$MIMO_LAB/eval/pathology/ (category, bucket, group, detector, adjudication per incident)",
+      "public": "counts and rates only (incidents per 100 scored generations by category); stage-4 runner outcomes additionally flow into task-outcome JSONL catastrophic/failure_category fields",
+      "git_policy": "no raw generations, prompts, trace content or paths in Git-tracked outputs"
+    }
+  },
+  "stages": [
+    {
+      "stage": 1,
+      "id": "distribution-controls",
+      "ladder_levels_by_reference": [1, 2, 3],
+      "inputs": ["candidate artifact inventory", "stage1-holdout-public-mix", "on-policy set: >=40 responses generated from original official weights under recorded sampling config"],
+      "metrics": ["heldout_ppl", "heldout_delta_ppl", "heldout_nll", "heldout_kl", "heldout_top1_agreement", "onpolicy_nll", "onpolicy_delta_nll", "onpolicy_kl", "onpolicy_top1_agreement (ALL)", "artifact gate: tensor inventory, dtype changes, NaN/Inf, reload round-trip"],
+      "kill_criterion": {
+        "absolute_not_calibrated": "artifact-gate failure, NaN/Inf, or unloadable weights kill immediately",
+        "spread_calibrated": "delta_ppl, delta_kl, delta_top1 thresholds vs the best candidate",
+        "status": "CALIBRATED AFTER STAGE-1 SPREAD",
+        "provisional_rule": "kill candidates strictly dominated on all three distribution metrics by another candidate at equal-or-larger weight budget"
+      },
+      "compute_class": "scoring",
+      "compute_note": "teacher-forced passes over ~524288-token calibration-equivalent budgets plus 63K held-out tokens and the on-policy set; single GPU pass; hours per candidate"
+    },
+    {
+      "stage": 2,
+      "id": "representative-trajectories",
+      "ladder_levels_by_reference": [2, 3, 5],
+      "inputs": ["stage1 survivors", "stage2-validation-trajectories (258 task groups)", "stage2-torture-longcontext (117 task groups)"],
+      "metrics": ["trajectory_onpolicy_nll", "slice_delta_nll", "slice_agreement", "longcontext_delta_nll", "longcontext_delta_agreement", "pathology_rate"],
+      "kill_criterion": {
+        "spread_calibrated": "delta_slice, delta_ctx, delta_path thresholds",
+        "status": "CALIBRATED AFTER STAGE-1 SPREAD",
+        "provisional_rule": "kill on (a) any primary slice (code/reasoning/agent) dominated by another candidate on both slice_delta_nll and slice_agreement, (b) long-context slope worse than best candidate + delta_ctx, or (c) adjudicated pathology rate above original reference + delta_path"
+      },
+      "compute_class": "scoring + bounded rollout",
+      "compute_note": "reference generation over trajectory prefixes plus teacher-forced scoring; GPU-hours per candidate"
+    },
+    {
+      "stage": 3,
+      "id": "reduced-benchmark-suite",
+      "ladder_levels_by_reference": [4, 5],
+      "inputs": ["stage2 survivors", "stage3-validation-shorttasks", "candidate suites (our choice; names from upstream REAP eval branches recorded in docs/hope-objective.md section 6): evalplus HumanEval+ and MBPP+ (pass@1), LiveCodeBench via lcb_runner at a pinned release window, one lm-eval small reasoning subset, plus level-5 protocol negative controls (methodology section 6)"],
+      "metrics": ["suite pass@1 and suite-native scores with paired seeds", "task_success_paired", "negative_control_pass_rate"],
+      "kill_criterion": {
+        "spread_calibrated": "delta_bench provisional band, seeded by stage-1 spread until stage-3 numbers exist",
+        "status": "CALIBRATED AFTER STAGE-1 SPREAD",
+        "provisional_rule": "kill a candidate whose reduced-suite retention falls below the sweep's provisional floor or whose paired CI is strictly below parity vs the reference; release-gate shapes from methodology section 6 (e.g. short coding retention >=93%) apply at release time, never as stage-3 auto-pass"
+      },
+      "compute_class": "benchmark_reduced",
+      "compute_note": "hours to ~1 day per candidate on one machine"
+    },
+    {
+      "stage": 4,
+      "id": "full-benchmarks-pareto-only",
+      "ladder_levels_by_reference": [6, 7],
+      "inputs": ["Pareto-frontier candidates from stages 1-3 (quality vs bytes; throughput excluded from the frontier)", "stage4-golden frozen bank (currently not_ready: 0 eligible of 235 reserved - reported unavailable, never substituted)", "full-window agentic suite (SWE-bench-class public-repo agent suite; our choice; no tacodevs counterpart exists)", "full LiveCodeBench window", "extended negative controls", "serving diagnostics"],
+      "metrics": ["task_success_paired on golden (rates, task-cluster 95% CIs, ratio, wins/losses/ties, McNemar where applicable)", "catastrophe_rate", "full benchmark scores", "pp_throughput", "decode_concurrency", "theoretical_bytes_per_token", "active_weight_bandwidth"],
+      "kill_criterion": {
+        "automatic_kill": null,
+        "status": "no automatic kill; decisions are Pareto-frontier plus golden paired outcome; CIs straddling parity are inconclusive by construction (methodology section 5); throughput never removes a candidate from the quality frontier"
+      },
+      "compute_class": "benchmark_full + serving",
+      "compute_note": "multi-day; frontier candidates only"
+    }
+  ],
+  "comparability_matrix": {
+    "heldout_ppl": "tacodevs_comparable",
+    "heldout_delta_ppl": "tacodevs_comparable",
+    "heldout_kl": "tacodevs_comparable",
+    "heldout_top1_agreement": "tacodevs_comparable",
+    "onpolicy_nll": "tacodevs_comparable",
+    "onpolicy_delta_nll": "tacodevs_comparable",
+    "onpolicy_kl": "tacodevs_comparable",
+    "onpolicy_top1_agreement": "tacodevs_comparable",
+    "onpolicy_slice_groups_all": "tacodevs_comparable_in_spirit_only",
+    "slice_agreement": "our_axis",
+    "slice_delta_nll": "our_axis",
+    "trajectory_onpolicy_nll": "our_axis",
+    "longcontext_delta_nll": "our_axis",
+    "longcontext_delta_agreement": "our_axis",
+    "pathology_rate": "our_axis",
+    "heldout_nll": "our_axis",
+    "task_success_paired": "our_axis",
+    "negative_control_pass_rate": "our_axis",
+    "catastrophe_rate": "our_axis",
+    "pp_throughput": "our_axis_pre_optimisation",
+    "decode_concurrency": "our_axis_pre_optimisation",
+    "theoretical_bytes_per_token": "our_axis",
+    "active_weight_bandwidth": "our_axis"
+  },
+  "comparability_notes": [
+    "tacodevs published no benchmark or task-success numbers (task_success null): stages 3-4 have no counterpart and are never compared to a nonexistent published value",
+    "their on-policy slice labeling method is unpublished: the ALL row is the definition-identical anchor; group rows are in-spirit comparable only",
+    "their NLL/KL log bases are presumed natural and stated as such; we record our bases explicitly so the comparison stays honest"
+  ],
+  "performance_diagnostics": {
+    "label": "PRE-OPTIMISATION",
+    "rule": "current runtime kernel quality differs by datatype; throughput is an implementation artifact, never a compression property",
+    "points": ["PP8K", "PP32K", "PP64K", "PP128K", "C1 decode", "C4", "C8"],
+    "commands_source": "docs/hardware-bringup.md section G (llama-bench prompt processing; benchmark_matrix.py concurrency)",
+    "derived": ["theoretical_bytes_per_token", "active_weight_bandwidth"]
+  },
+  "claims_and_prohibitions": [
+    "distribution metrics are controls, never task success; a high-agreement candidate with a worse golden paired outcome loses",
+    "quality decides the winner; high-quality candidates are never rejected for poor current throughput and worse candidates never selected for a lucky kernel",
+    "tacodevs numbers are publisher-reported with independently_reproduced=false; reproducing their method is comparability work, not endorsement",
+    "golden never enters calibration or method selection; bank reported unavailable until reserved+eligible >= 50",
+    "no raw trace content, prompts, repo identifiers, secrets or absolute local paths in Git-tracked outputs; private artifacts stay under $MIMO_LAB",
+    "missing measurements stay null/unavailable, never zero, never inferred",
+    "thresholds marked CALIBRATED AFTER STAGE-1 SPREAD are non-binding until calibrated and written back into this file",
+    "every candidate is built from the original Xiaomi source (revision 5711b268169967567844e1e560e8a3966da959b1); the tacodevs MLX checkpoint is prior information only"
+  ]
+}
