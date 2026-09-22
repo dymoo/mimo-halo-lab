@@ -1,23 +1,36 @@
-"""Production quality gates: fail-closed promotion checks.
+"""Deployment-readiness gates: fail-closed evidence checks over supplied inputs.
 
-Consumes MEASURED candidate records and refuses promotion when any hard floor
-from docs/quality-expectations.md is missed. Rules:
+Consumes a candidate record and refuses promotion when any hard floor from
+docs/quality-expectations.md is missed. Rules:
 
+- Scope: these gates check the evidence a record supplies; `measured=True`
+  is a record assertion, never authentication that a measurement happened.
 - Estimates never pass a gate. A record without measured provenance is
   'unmeasured', and unmeasured never promotes.
+- `promotable` here is DEPLOYMENT readiness, not quality-frontier
+  eligibility: throughput/stability floors gate deployment only, while
+  quality-frontier eligibility (validate_levels.quality_frontier_eligible)
+  is decided from quality-level evidence alone.
+- Invalid evidence or configuration is rejected, not scored: a non-object
+  metrics container, or a metric/threshold value that is boolean, not a
+  number, non-finite (inf/nan) or negative, raises GateError. Retention is
+  a ratio and may exceed 1 for genuine improvement; it is never capped.
 - Any 'fail' blocks promotion outright; 'unmeasured' blocks too (exit code 2
   distinguishes them for operators).
 - Thresholds live here as named constants with their source documented in
-  docs/quality-expectations.md; override via a config dict, never silently.
+  docs/quality-expectations.md; override via a config dict, never silently
+  (unknown keys and nonsensical bounds raise GateError).
 
 CLI: python3 -m mimo_halo.evaluation.gates --candidate CANDIDATE.json \
-     [--outcomes OUTCOMES.json] [--config GATES.json] -> verdict JSON;
-exit 0 = all gates pass, 1 = at least one fail, 2 = no fails but unmeasured.
+     [--config GATES.json] -> verdict JSON;
+exit 0 = all gates pass, 1 = at least one fail, 2 = no fails but unmeasured
+(rejected input/configuration also exits 2 with an error on stderr).
 """
 
 from __future__ import annotations
 
 import json
+import math
 import sys
 
 GIB = 1024**3
@@ -48,6 +61,63 @@ REQUIRED_TRUE_FLAGS = (
     "catastrophic_failures_not_increased",  # paired evidence, not vibes
 )
 
+# Metric keys gates read; any other metrics keys are ignored diagnostics.
+METRIC_KEYS = (
+    "long_agent_retention",
+    "short_coding_retention",
+    "repo_tool_retention",
+    "resident_weight_bytes",
+    "c8_aggregate_tok_s",
+)
+
+
+class GateError(Exception):
+    """Fail-closed rejection of malformed records or threshold configuration."""
+
+
+def _checked_number(value: object, where: str) -> float:
+    """Return a finite, non-boolean, non-negative number or raise GateError."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise GateError(f"{where}: expected a number, got {value!r}")
+    if isinstance(value, float) and not math.isfinite(value):
+        raise GateError(f"{where}: expected a finite number, got {value!r}")
+    if value < 0:
+        raise GateError(f"{where}: expected a non-negative number, got {value!r}")
+    return float(value)
+
+
+def _validate_metrics(metrics: object) -> dict:
+    """Reject a malformed metrics container or any invalid gate metric."""
+    if metrics is None:
+        return {}
+    if not isinstance(metrics, dict):
+        raise GateError(f"metrics must be an object or null, got {type(metrics).__name__}")
+    for key in METRIC_KEYS:
+        if metrics.get(key) is not None:
+            _checked_number(metrics[key], f"metrics.{key}")
+    return metrics
+
+
+def _validate_thresholds(thresholds: object) -> dict:
+    """Merge threshold overrides over the defaults, rejecting bad configs."""
+    if thresholds is None:
+        return dict(DEFAULT_THRESHOLDS)
+    if not isinstance(thresholds, dict):
+        raise GateError(f"threshold config must be an object, got {type(thresholds).__name__}")
+    unknown = sorted(set(thresholds) - set(DEFAULT_THRESHOLDS))
+    if unknown:
+        raise GateError(f"unknown threshold key(s): {', '.join(unknown)}")
+    merged = dict(DEFAULT_THRESHOLDS)
+    for key, value in thresholds.items():
+        merged[key] = _checked_number(value, f"threshold {key}")
+    if merged["weight_bytes_min"] > merged["weight_bytes_max"]:
+        raise GateError("threshold weight_bytes_min must be <= weight_bytes_max")
+    if merged["weight_bytes_max"] > merged["weight_bytes_production_ceiling"]:
+        raise GateError(
+            "threshold weight_bytes_max must be <= weight_bytes_production_ceiling"
+        )
+    return merged
+
 
 def _gate(name: str, status: str, observed=None, required=None, note: str = "") -> dict:
     return {
@@ -60,10 +130,13 @@ def _gate(name: str, status: str, observed=None, required=None, note: str = "") 
 
 
 def check_gates(record: dict, thresholds: dict | None = None) -> dict:
-    """Return per-gate verdicts plus an overall promotion verdict."""
-    th = dict(DEFAULT_THRESHOLDS)
-    if thresholds:
-        th.update(thresholds)
+    """Return per-gate verdicts plus an overall promotion verdict.
+
+    Fail-closed: rejects (GateError) malformed metrics containers, invalid
+    metric values (boolean, non-numeric, non-finite, negative) and invalid
+    threshold configurations instead of scoring them.
+    """
+    th = _validate_thresholds(thresholds)
 
     if not isinstance(record, dict) or record.get("measured") is not True:
         gates = [
@@ -78,7 +151,7 @@ def check_gates(record: dict, thresholds: dict | None = None) -> dict:
         return {"promotable": False, "verdict": "unmeasured", "gates": gates}
 
     gates = [_gate("measured_provenance", "pass", observed=True, required=True)]
-    metrics = record.get("metrics") or {}
+    metrics = _validate_metrics(record.get("metrics"))
 
     # Retention floors (golden-bank measured fractions).
     for key, floor, label in (
@@ -162,7 +235,11 @@ def main(argv: list[str] | None = None) -> int:
         with open(args.config, encoding="utf-8") as fh:
             thresholds = json.load(fh)
 
-    result = check_gates(record, thresholds)
+    try:
+        result = check_gates(record, thresholds)
+    except GateError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     json.dump(result, sys.stdout, indent=2, sort_keys=True)
     sys.stdout.write("\n")
     return {"pass": 0, "fail": 1, "unmeasured": 2}[result["verdict"]]

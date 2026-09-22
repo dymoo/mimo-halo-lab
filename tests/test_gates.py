@@ -9,6 +9,7 @@ import unittest
 
 from mimo_halo.evaluation.gates import (
     DEFAULT_THRESHOLDS,
+    GateError,
     check_gates,
     main,
 )
@@ -65,6 +66,55 @@ class PromotionTests(unittest.TestCase):
         self.assertEqual(result["verdict"], "unmeasured")
 
 
+class RejectionTests(unittest.TestCase):
+    """Invalid evidence/configuration is rejected, never scored as a pass."""
+
+    def test_nonfinite_retention_never_promotes(self):
+        # Regression: inf used to satisfy >= floor and promote.
+        record = passing_record()
+        record["metrics"]["long_agent_retention"] = float("inf")
+        with self.assertRaises(GateError):
+            check_gates(record)
+        record["metrics"]["long_agent_retention"] = float("nan")
+        with self.assertRaises(GateError):
+            check_gates(record)
+
+    def test_bool_negative_and_nonnumeric_metrics_rejected(self):
+        for bad in (True, -0.5, "0.95"):
+            record = passing_record()
+            record["metrics"]["long_agent_retention"] = bad
+            with self.assertRaises(GateError, msg=repr(bad)):
+                check_gates(record)
+
+    def test_malformed_metrics_container_rejected(self):
+        for bad in ([], "metrics", 5):
+            record = passing_record()
+            record["metrics"] = bad
+            with self.assertRaises(GateError, msg=repr(bad)):
+                check_gates(record)
+
+    def test_retention_above_one_still_passes(self):
+        # A ratio may exceed 1 for genuine improvement; no cap at 1.
+        record = passing_record()
+        record["metrics"]["long_agent_retention"] = 1.05
+        self.assertEqual(check_gates(record)["verdict"], "pass")
+
+    def test_bad_threshold_configs_rejected(self):
+        record = passing_record()
+        for bad in (
+            {"made_up_floor": 1.0},
+            {"long_agent_retention_floor": float("inf")},
+            {"long_agent_retention_floor": True},
+            {"long_agent_retention_floor": -0.1},
+            {"weight_bytes_min": DEFAULT_THRESHOLDS["weight_bytes_max"] + 1},
+            {"weight_bytes_max": DEFAULT_THRESHOLDS["weight_bytes_production_ceiling"] + 1},
+        ):
+            with self.assertRaises(GateError, msg=repr(bad)):
+                check_gates(record, bad)
+        with self.assertRaises(GateError):
+            check_gates(record, [5])
+
+
 class BoundaryTests(unittest.TestCase):
     def test_retention_floors_are_inclusive(self):
         record = passing_record()
@@ -117,6 +167,16 @@ class CliTests(unittest.TestCase):
         unmeasured = passing_record()
         del unmeasured["metrics"]["c8_aggregate_tok_s"]
         self.assertEqual(self._run(unmeasured), 2)
+
+    def test_invalid_record_exits_2_with_error(self):
+        bad = passing_record()
+        bad["metrics"]["c8_aggregate_tok_s"] = float("inf")
+        self.assertEqual(self._run(bad), 2)
+
+    def test_outcomes_flag_does_not_exist(self):
+        with self.assertRaises(SystemExit) as ctx:
+            main(["--candidate", "x.json", "--outcomes", "y.json"])
+        self.assertEqual(ctx.exception.code, 2)
 
 
 if __name__ == "__main__":
