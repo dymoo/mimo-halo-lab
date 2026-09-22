@@ -1,0 +1,462 @@
+{
+  "schema_version": 1,
+  "experiment_id": "compression-sweep-90gib",
+  "title": "Quality-first ~90 GiB memory-matched expert-pruning x quantisation sweep for MiMo-V2.6-Flash-RL",
+  "status": "design; no model compute has run; every measurement slot is null until measured",
+  "supersedes_by_reference": [
+    "configs/experiments/memory-matched.json",
+    "docs/experiments/memory-matched.md"
+  ],
+  "unit_conventions": {
+    "gib_bytes": 1073741824,
+    "decimal_gb_bytes": 1000000000,
+    "byte_rule": "Every budget comparison is decided on exact integer bytes. Decimal GB is 10^9 bytes; GiB is 2^30 bytes; the two are never mixed. No approximate parameter math anywhere: every figure derives from memory-report.json / inventory.json fields or exact integer formulas stated below."
+  },
+  "source_weights": {
+    "repo_id": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+    "revision": "5711b268169967567844e1e560e8a3966da959b1",
+    "file_count": 90,
+    "total_bytes": 177767644228,
+    "verified_on_disk_at": "$MIMO_LAB/source-models/XiaomiMiMo--MiMo-V2.6-Flash-RL/5711b268169967567844e1e560e8a3966da959b1",
+    "digest_basis": [
+      "inventory.json source.files[].lfs_sha256 (71 LFS-digested files) + recorded sizes for all 90 files, recomputed against the on-disk tree",
+      "manifests/models/mimo-v2.6-flash-rl/memory-report.json derived from the same safetensors-header inventory",
+      "digests verified = recorded sha256 values match the bytes on disk at the pinned revision"
+    ],
+    "rule": "Every candidate is constructed ONLY from these original weights. The tacodevs MLX checkpoint (and its published tensor-sensitivity work) is PRIOR INFORMATION and is never a construction source."
+  },
+  "budget": {
+    "target_resident_bytes": 96636764160,
+    "target_label": "90 GiB exactly (90 * 2^30)",
+    "tolerance_percent": 2,
+    "tolerance_bytes": 1932735283,
+    "window_bytes": [94704028877, 98569499443],
+    "basis": "Text-model resident weight payload = retained expert instances + non-expert text classes with the router row-sliced to the retained count. Auxiliary components (mtp/vision/audio/dflash: components.* except text) are recorded separately and never netted into this budget; KV cache and runtime headroom are excluded.",
+    "runtime_memory_measured": false
+  },
+  "rounding_rule": {
+    "expression": "retained = 256 - round_half_up(256 * reap_percent_pruned / 100)",
+    "method": "round_half_up(x) = floor(x + 0.5); REAPxx is defined as the PERCENT OF EXPERTS PRUNED PER LAYER",
+    "applies_uniformly_to_each_moe_layer": true,
+    "moe_layers": 47,
+    "retained_by_reap_percent": { "25": 192, "30": 179, "35": 166, "40": 154, "45": 141 },
+    "pruned_by_reap_percent": { "25": 64, "30": 77, "35": 90, "40": 102, "45": 115 },
+    "raw_pruned_values": { "25": 64.0, "30": 76.8, "35": 89.6, "40": 102.4, "45": 115.2 }
+  },
+  "byte_constants": {
+    "affine_byte_rule": "bytes = logical_parameters * bits // 8 + (logical_parameters // group_size) * 2  (int8 scale + int8 zero point per group; every referenced tensor's parameter count is divisible by its group_size, so all products are exact integers)",
+    "expert_instance_native_bytes": { "value": 13369344, "source_field": "memory-report.json native.per_layer_expert_layout.stored_bytes" },
+    "expert_instance_logical_parameters": { "value": 25165824, "source_field": "memory-report.json native.per_layer_expert_layout.logical_parameters" },
+    "expert_instance_q3_g128_bytes": { "value": 9830400, "formula": "3 projections * (8388608 * 3 // 8 + (8388608 // 128) * 2) = 3 * 3276800; projection params = 25165824 / 3" },
+    "per_retained_index_native_bytes": { "value": 628359168, "source_field": "memory-report.json native.per_retained_expert_across_moe_layers_stored_bytes" },
+    "per_retained_index_q3_bytes": { "value": 462028800, "formula": "47 layers * 3 * 3276800" },
+    "per_retained_index_logical_parameters": { "value": 1182793728, "source_field": "memory-report.json native.per_retained_expert_across_moe_layers_logical_parameters" },
+    "router_bytes_per_retained_index": { "value": 385212, "source_field": "memory-report.json native.router_stored_bytes_per_retained_expert_across_moe_layers", "formula": "47 * (4096 * 2 bytes per BF16 gate row + 4 bytes per F32 bias entry)" },
+    "router_total_native_bytes": { "value": 98614272, "source_field": "memory-report.json native.router_stored_bytes" },
+    "non_expert_stored_bytes": { "value": 8894573440, "source_field": "memory-report.json native.non_expert_stored_bytes" },
+    "non_router_non_expert_native_bytes": { "value": 8795959168, "formula": "8894573440 - 98614272; equals the exact inventory class-row sum (attention + dense_ffn + embeddings + norms)" },
+    "mxfp4_bpw_exact": { "value": 4.25, "source_field": "memory-report.json precision_costs.mxfp4_native_u8_packed.bits_per_logical_parameter_exact", "note": "U8 nibble-packed weights + per-32 scale bytes; not interchangeable with ROCm FP4 GGUF formats" },
+    "q3_g128_bpw_exact": { "value": 3.125, "formula": "3 + 16/128" },
+    "q8_g64_bpw_exact": { "value": 8.25, "formula": "8 + 16/64" },
+    "q6_g128_bpw_exact": { "value": 6.125, "formula": "6 + 16/128" },
+    "native_text_256_bytes": { "value": 169754520448, "source_field": "memory-report.json native.text_stored_bytes" },
+    "pure_native_text_formula": "resident(R) = R * 628359168 + R * 385212 + 8795959168; validated against all five memory-report.json prune_candidates[].native_text_payload_bytes rows (256/192/176/160/144)"
+  },
+  "quant_formats": {
+    "vocabulary": "bits / group_size / mode, following tests/test_tacodevs_reap25.py _spec_cycle() prior art (mode in {affine, mxfp4})",
+    "formats": {
+      "mxfp4_native": { "bits": 4, "group_size": 32, "mode": "mxfp4", "bpw_exact": 4.25, "second_gen": false, "note": "bit-exact copy of Xiaomi's packed MXFP4 weights + per-32 scales" },
+      "q3_affine_g128": { "bits": 3, "group_size": 128, "mode": "affine", "bpw_exact": 3.125, "second_gen": true, "note": "aggressive Q3 second-gen on decoded MXFP4 values" },
+      "q8_affine_g64": { "bits": 8, "group_size": 64, "mode": "affine", "bpw_exact": 8.25, "second_gen": true },
+      "q6_affine_g128": { "bits": 6, "group_size": 128, "mode": "affine", "bpw_exact": 6.125, "second_gen": true },
+      "native_fp8_e4m3": { "second_gen": false, "note": "official native qkv/dense storage + F32 weight_scale_inv blocks [128,128]; bit-exact copy" },
+      "native_bf16": { "second_gen": false, "note": "bit-exact copy of stored BF16 payload" },
+      "native_f32": { "second_gen": false },
+      "native_dense_row_sliced": { "second_gen": false, "note": "router: exact dense row scaling of BF16 gate weight + F32 bias to the retained count (known:true per docs/pruning-integrity.md); no packing cost invented" }
+    },
+    "note_bits_beyond_prior_vocab": "bits 6 and 8 (protected classes) exceed the tacodevs test vocab VALID_BITS={2,3,4}; our protected-class ceilings are Q6/Q8 per the class table below."
+  },
+  "protected_class_table": {
+    "basis": "tacodevs published allocation = sensitivity PRIOR ONLY (not measured sensitivity, not task-success evidence, not their allocation copied)",
+    "source_pointers": [
+      "docs/baselines/tacodevs-reap25.md - 'Published precision reference (allocation evidence, not measured sensitivity)' and Caveats",
+      "manifests/baselines/tacodevs-reap25/normalized.json - precision_summary.projection_counts (affine_b3_g128 93, mxfp4_b4_g32 22, affine_b2_g128 18, affine_b3_g64 8; 141 projections total), precision_summary.sensitive_projection_references, published_evaluation.distribution.compression_eval (attn_bits 8, embed_bits 16, lm_bits 8)",
+      "docs/experiments/memory-matched.json baseline_precision_reference (other text tensors: 8-bit affine g64)"
+    ],
+    "rows": [
+      { "class": "router", "prior": "other text tensors at 8-bit affine g64 (attn_bits 8 umbrella)", "our_rule": "HIGHEST precision: native dense BF16 gate + F32 correction bias, exact row-slice (16-bit+ class; raised vs prior)", "applied": "all candidates, bit-exact row-slice", "budget_action": "none - scales with retained count only" },
+      { "class": "norms", "prior": "other text tensors at 8-bit affine g64", "our_rule": "FP16-class: bit-exact native BF16 copy (raised vs prior)", "applied": "all candidates", "budget_action": "none" },
+      { "class": "embeddings_lm_head", "prior": "embed_bits 16 / lm_bits 8 (archived compression_eval.json)", "our_rule": "Q6-class ceiling (q6_affine_g128): kept bit-exact native BF16 while the budget allows; Q6 applied only where the matched budget requires it", "applied": "native BF16 in reap25/reap30/reap40/reap45; Q6 in reap35 (budget-required, recorded in second_gen_applied)", "budget_action": "reap35 only: 2499805184 -> 956956672 bytes" },
+      { "class": "attention_qkv", "prior": "attn_bits 8", "our_rule": "native FP8-E4M3 + F32 scales (already 8-bit class): bit-exact, NEVER re-encoded (no second-generation of an already-quantized tensor)", "applied": "all candidates", "budget_action": "none" },
+      { "class": "attention_o_proj_and_sinks", "prior": "attn_bits 8 / 8-bit affine g64 - 'attention higher than bulk'", "our_rule": "Q8-class ceiling (q8_affine_g64), strictly higher than any expert format: kept bit-exact native BF16 while the budget allows; Q8 applied only where the matched budget requires it", "applied": "native BF16 in reap25/reap30/reap40/reap45; Q8 in reap35 (budget-required, recorded)", "budget_action": "reap35 only: 3221230464 -> 1660946958 bytes" },
+      { "class": "dense_ffn_layer0", "prior": "other text tensors at 8-bit", "our_rule": "native FP8-E4M3 (already ~8-bit): bit-exact", "applied": "all candidates", "budget_action": "none" },
+      { "class": "expert_projections", "prior": "mixed 3-bit/2-bit affine g128/g64 with 22 native-MXFP4 projections, 3.29 bpw published (their allocation, not copied)", "our_rule": "native MXFP4 (4.25 bpw) for the highest-salience survivors; q3_affine_g128 (3.125 bpw) second-gen for the rest, per candidate table; NO 2-bit tier in any candidate", "applied": "per candidate allocation_table", "budget_action": "primary budget lever for all five candidates" }
+    ],
+    "adaptation_rule": "Class-table precisions are PROTECTION CEILINGS: a class never drops below its ceiling, and stays bit-exact native while the budget allows. Second-generation quantization is applied class-by-class ONLY where the matched budget requires it, and every application is recorded in that candidate's second_gen_applied list."
+  },
+  "non_expert_class_bytes_native": {
+    "source": "exact sums over inventory.json tensors (component=text, non-expert)",
+    "closure": "8720753152 + 703488 + 3221225472 + 4992 + 201375744 + 2499805184 + 794624 = 8795959168; + router 98614272 = 8894573440 = memory-report.json native.non_expert_stored_bytes (exact)",
+    "rows": {
+      "attention_qkv": { "units": 48, "unit_label": "tensor", "bytes_per_unit": 59834368, "class_bytes": 2872049664, "format": "native_fp8_e4m3" },
+      "attention_qkv_scales": { "units": 48, "unit_label": "tensor", "bytes_per_unit": 14656, "class_bytes": 703488, "format": "native_f32" },
+      "attention_o_proj": { "units": 48, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 3221225472, "format": "native_bf16" },
+      "attention_sinks": { "units": 39, "unit_label": "tensor", "bytes_per_unit": 128, "class_bytes": 4992, "format": "native_bf16" },
+      "dense_ffn": { "units": 3, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 201326592, "format": "native_fp8_e4m3" },
+      "dense_ffn_scales": { "units": 3, "unit_label": "tensor", "bytes_per_unit": 16384, "class_bytes": 49152, "format": "native_f32" },
+      "embeddings_lm_head": { "units": 2, "unit_label": "tensor", "bytes_per_unit": 1249902592, "class_bytes": 2499805184, "format": "native_bf16" },
+      "norms": { "units": 97, "unit_label": "tensor", "bytes_per_unit": 8192, "class_bytes": 794624, "format": "native_bf16" },
+      "router": { "units": "R (retained per layer)", "unit_label": "retained_index", "bytes_per_unit": 385212, "format": "native_dense_row_sliced" }
+    }
+  },
+  "candidates": [
+    {
+      "candidate_id": "reap25-aggressive-q3",
+      "description": "REAP25 (192 retained) + aggressive Q3 second-gen over 100% of expert payloads",
+      "reap_percent_pruned": 25,
+      "rounding_rule": "retained = 256 - round_half_up(256 * 25 / 100) = 256 - 64 = 192",
+      "retained_experts_per_layer": 192,
+      "retained_total_experts": 9024,
+      "pruned_total_experts": 3008,
+      "moe_layers": 47,
+      "allocation_table": [
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "units": 9024, "unit_label": "expert_instance", "bytes_per_unit": 9830400, "class_bytes": 88709529600, "second_gen": true, "bit_exact": false, "source_field": "formula: 9024 * 9830400 (see byte_constants.expert_instance_q3_g128_bytes)" },
+        { "class": "router", "format": "native_dense_row_sliced", "units": 192, "unit_label": "retained_index", "bytes_per_unit": 385212, "class_bytes": 73960704, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.router_stored_bytes_per_retained_expert_across_moe_layers" },
+        { "class": "attention_qkv", "format": "native_fp8_e4m3", "units": 48, "unit_label": "tensor", "bytes_per_unit": 59834368, "class_bytes": 2872049664, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight" },
+        { "class": "attention_qkv_scales", "format": "native_f32", "units": 48, "unit_label": "tensor", "bytes_per_unit": 14656, "class_bytes": 703488, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight_scale_inv" },
+        { "class": "attention_o_proj", "format": "native_bf16", "units": 48, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 3221225472, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.o_proj.weight" },
+        { "class": "attention_sinks", "format": "native_bf16", "units": 39, "unit_label": "tensor", "bytes_per_unit": 128, "class_bytes": 4992, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum attention_sink_bias" },
+        { "class": "dense_ffn", "format": "native_fp8_e4m3", "units": 3, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 201326592, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 mlp weights" },
+        { "class": "dense_ffn_scales", "format": "native_f32", "units": 3, "unit_label": "tensor", "bytes_per_unit": 16384, "class_bytes": 49152, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 weight_scale_inv" },
+        { "class": "embeddings_lm_head", "format": "native_bf16", "units": 2, "unit_label": "tensor", "bytes_per_unit": 1249902592, "class_bytes": 2499805184, "second_gen": false, "bit_exact": true, "source_field": "inventory.json embed_tokens + lm_head" },
+        { "class": "norms", "format": "native_bf16", "units": 97, "unit_label": "tensor", "bytes_per_unit": 8192, "class_bytes": 794624, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layernorm tensors" }
+      ],
+      "expert_precision": {
+        "native_mxfp4_instances": 0,
+        "q3_instances": 9024,
+        "instance_bytes_native": 13369344,
+        "instance_bytes_q3": 9830400,
+        "q3_percent": 100.0,
+        "per_layer_distribution": { "base_q3_per_layer": 192, "extra_q3_layers": [], "extra_q3_per_layer": 0 },
+        "assignment_rule": "all retained experts Q3 (recipe identity: full second-gen coverage); salience ordering irrelevant at 100%"
+      },
+      "second_gen_applied": [
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "scope": "all 9024 retained expert instances (47 layers x 192)", "bytes_before": 120644960256, "bytes_after": 88709529600, "reason": "aggressive-Q3 recipe identity AND matched budget: the pure-MXFP4 floor is 129514880128 B (+34.02%), far outside the +/-2% band; Q3-only floor lands +0.98% and no sub-Q3 or protected-class cut is used" }
+      ],
+      "planned_resident_weight_bytes": 97579449472,
+      "gib": 90.8779,
+      "decimal_gb": 97.579449,
+      "residual_bytes": 942685312,
+      "residual_percent": 0.9755,
+      "within_tolerance": true,
+      "pure_mxfp4_floor_bytes": 129514880128,
+      "pure_mxfp4_floor_within_tolerance": false
+    },
+    {
+      "candidate_id": "reap30-mixed-mxfp4-q3",
+      "description": "REAP30 (179 retained) + mixed MXFP4/Q3: highest-salience survivors keep native MXFP4, low-salience survivors take Q3",
+      "reap_percent_pruned": 30,
+      "rounding_rule": "retained = 256 - round_half_up(256 * 30 / 100) = 256 - round_half_up(76.8) = 256 - 77 = 179",
+      "retained_experts_per_layer": 179,
+      "retained_total_experts": 8413,
+      "pruned_total_experts": 3619,
+      "moe_layers": 47,
+      "allocation_table": [
+        { "class": "experts_native", "format": "mxfp4_native", "units": 1432, "unit_label": "expert_instance", "bytes_per_unit": 13369344, "class_bytes": 19144900608, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.per_layer_expert_layout.stored_bytes" },
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "units": 6981, "unit_label": "expert_instance", "bytes_per_unit": 9830400, "class_bytes": 68626022400, "second_gen": true, "bit_exact": false, "source_field": "formula: 6981 * 9830400" },
+        { "class": "router", "format": "native_dense_row_sliced", "units": 179, "unit_label": "retained_index", "bytes_per_unit": 385212, "class_bytes": 68952948, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.router_stored_bytes_per_retained_expert_across_moe_layers" },
+        { "class": "attention_qkv", "format": "native_fp8_e4m3", "units": 48, "unit_label": "tensor", "bytes_per_unit": 59834368, "class_bytes": 2872049664, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight" },
+        { "class": "attention_qkv_scales", "format": "native_f32", "units": 48, "unit_label": "tensor", "bytes_per_unit": 14656, "class_bytes": 703488, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight_scale_inv" },
+        { "class": "attention_o_proj", "format": "native_bf16", "units": 48, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 3221225472, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.o_proj.weight" },
+        { "class": "attention_sinks", "format": "native_bf16", "units": 39, "unit_label": "tensor", "bytes_per_unit": 128, "class_bytes": 4992, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum attention_sink_bias" },
+        { "class": "dense_ffn", "format": "native_fp8_e4m3", "units": 3, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 201326592, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 mlp weights" },
+        { "class": "dense_ffn_scales", "format": "native_f32", "units": 3, "unit_label": "tensor", "bytes_per_unit": 16384, "class_bytes": 49152, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 weight_scale_inv" },
+        { "class": "embeddings_lm_head", "format": "native_bf16", "units": 2, "unit_label": "tensor", "bytes_per_unit": 1249902592, "class_bytes": 2499805184, "second_gen": false, "bit_exact": true, "source_field": "inventory.json embed_tokens + lm_head" },
+        { "class": "norms", "format": "native_bf16", "units": 97, "unit_label": "tensor", "bytes_per_unit": 8192, "class_bytes": 794624, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layernorm tensors" }
+      ],
+      "expert_precision": {
+        "native_mxfp4_instances": 1432,
+        "q3_instances": 6981,
+        "instance_bytes_native": 13369344,
+        "instance_bytes_q3": 9830400,
+        "q3_percent": 82.98,
+        "per_layer_distribution": { "base_q3_per_layer": 148, "extra_q3_layers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25], "extra_q3_per_layer": 149 },
+        "assignment_rule": "within each layer the lowest-REAP-salience retained experts take Q3 first; per-layer Q3 count = 149 (layers 1-25) or 148 (layers 26-47); the highest-salience 30/31 survivors per layer keep bit-exact native MXFP4; totals independent of ordering (uniform instance bytes)"
+      },
+      "second_gen_applied": [
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "scope": "6981 of 8413 retained expert instances (lowest REAP salience first; 149 per layer in layers 1-25, 148 in layers 26-47)", "bytes_before": 93331390464, "bytes_after": 68626022400, "reason": "matched budget: the pure-MXFP4 floor is 121341203188 B (+25.56%); no non-expert class needed cutting" }
+      ],
+      "planned_resident_weight_bytes": 96635835124,
+      "gib": 89.9991,
+      "decimal_gb": 96.635835,
+      "residual_bytes": -929036,
+      "residual_percent": -0.001,
+      "within_tolerance": true,
+      "pure_mxfp4_floor_bytes": 121341203188,
+      "pure_mxfp4_floor_within_tolerance": false
+    },
+    {
+      "candidate_id": "reap35-mostly-mxfp4",
+      "description": "REAP35 (166 retained) + mostly MXFP4: majority of survivors keep native MXFP4; Q3 only on low-salience survivors; budget pressure absorbed by two protected-class conversions (embeddings Q6, attention o_proj/sinks Q8) recorded below",
+      "reap_percent_pruned": 35,
+      "rounding_rule": "retained = 256 - round_half_up(256 * 35 / 100) = 256 - round_half_up(89.6) = 256 - 90 = 166",
+      "retained_experts_per_layer": 166,
+      "retained_total_experts": 7802,
+      "pruned_total_experts": 4230,
+      "moe_layers": 47,
+      "allocation_table": [
+        { "class": "experts_native", "format": "mxfp4_native", "units": 4008, "unit_label": "expert_instance", "bytes_per_unit": 13369344, "class_bytes": 53584330752, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.per_layer_expert_layout.stored_bytes" },
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "units": 3794, "unit_label": "expert_instance", "bytes_per_unit": 9830400, "class_bytes": 37296537600, "second_gen": true, "bit_exact": false, "source_field": "formula: 3794 * 9830400" },
+        { "class": "router", "format": "native_dense_row_sliced", "units": 166, "unit_label": "retained_index", "bytes_per_unit": 385212, "class_bytes": 63945192, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.router_stored_bytes_per_retained_expert_across_moe_layers" },
+        { "class": "attention_qkv", "format": "native_fp8_e4m3", "units": 48, "unit_label": "tensor", "bytes_per_unit": 59834368, "class_bytes": 2872049664, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight" },
+        { "class": "attention_qkv_scales", "format": "native_f32", "units": 48, "unit_label": "tensor", "bytes_per_unit": 14656, "class_bytes": 703488, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight_scale_inv" },
+        { "class": "attention_o_proj", "format": "q8_affine_g64", "units": 48, "unit_label": "tensor", "bytes_per_unit": 34603008, "class_bytes": 1660944384, "second_gen": true, "bit_exact": false, "source_field": "formula: (67108864 * 8 // 8) + (33554432 // 64) * 2 per tensor = 34603008" },
+        { "class": "attention_sinks", "format": "q8_affine_g64", "units": 39, "unit_label": "tensor", "bytes_per_unit": 66, "class_bytes": 2574, "second_gen": true, "bit_exact": false, "source_field": "formula: 64 params * 1 + (64 // 64) * 2 = 66 per tensor" },
+        { "class": "dense_ffn", "format": "native_fp8_e4m3", "units": 3, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 201326592, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 mlp weights" },
+        { "class": "dense_ffn_scales", "format": "native_f32", "units": 3, "unit_label": "tensor", "bytes_per_unit": 16384, "class_bytes": 49152, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 weight_scale_inv" },
+        { "class": "embeddings_lm_head", "format": "q6_affine_g128", "units": 2, "unit_label": "tensor", "bytes_per_unit": 478478336, "class_bytes": 956956672, "second_gen": true, "bit_exact": false, "source_field": "formula: 152576 rows * (4096 * 6 // 8 + (4096 // 128) * 2) = 152576 * 3136 per tensor" },
+        { "class": "norms", "format": "native_bf16", "units": 97, "unit_label": "tensor", "bytes_per_unit": 8192, "class_bytes": 794624, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layernorm tensors" }
+      ],
+      "expert_precision": {
+        "native_mxfp4_instances": 4008,
+        "q3_instances": 3794,
+        "instance_bytes_native": 13369344,
+        "instance_bytes_q3": 9830400,
+        "q3_percent": 48.63,
+        "per_layer_distribution": { "base_q3_per_layer": 80, "extra_q3_layers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34], "extra_q3_per_layer": 81 },
+        "assignment_rule": "Q3 only on the lowest-REAP-salience survivors: per-layer Q3 count = 81 (layers 1-34) or 80 (layers 35-47); the highest-salience 85/86 survivors per layer keep bit-exact native MXFP4 (51.37% of instances native overall); totals independent of ordering (uniform instance bytes)"
+      },
+      "second_gen_applied": [
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "scope": "3794 of 7802 retained expert instances (lowest REAP salience first; 81 per layer in layers 1-34, 80 in layers 35-47)", "bytes_before": 50723291136, "bytes_after": 37296537600, "reason": "matched budget while keeping a native-MXFP4 majority: with all non-expert classes native, every majority-MXFP4 allocation lands at >= 99365644648 B (+2.82%), outside the +/-2% band" },
+        { "class": "embeddings_lm_head", "format": "q6_affine_g128", "scope": "both [152576, 4096] tensors (embed_tokens + lm_head)", "bytes_before": 2499805184, "bytes_after": 956956672, "reason": "budget-required class-by-class reduction at the class table's Q6 ceiling so the majority of survivors can stay native MXFP4; norms/router untouched" },
+        { "class": "attention_o_proj", "format": "q8_affine_g64", "scope": "all 48 o_proj tensors", "bytes_before": 3221225472, "bytes_after": 1660944384, "reason": "budget-required class-by-class reduction at the class table's Q8 ceiling (attention stays far above bulk precision); qkv stays native FP8 - never re-encoded" },
+        { "class": "attention_sinks", "format": "q8_affine_g64", "scope": "all 39 attention_sink_bias tensors", "bytes_before": 4992, "bytes_after": 2574, "reason": "same budget-required attention-class conversion as o_proj" }
+      ],
+      "planned_resident_weight_bytes": 96637640694,
+      "gib": 90.0008,
+      "decimal_gb": 96.637641,
+      "residual_bytes": 876534,
+      "residual_percent": 0.0009,
+      "within_tolerance": true,
+      "pure_mxfp4_floor_bytes": 113167526248,
+      "pure_mxfp4_floor_within_tolerance": false
+    },
+    {
+      "candidate_id": "reap40-mxfp4-minimal-second-gen",
+      "description": "REAP40 (154 retained) + mostly native MXFP4; minimal second-gen on the lowest-salience 35.08% of survivor instances only; every protected class untouched",
+      "reap_percent_pruned": 40,
+      "rounding_rule": "retained = 256 - round_half_up(256 * 40 / 100) = 256 - round_half_up(102.4) = 256 - 102 = 154",
+      "retained_experts_per_layer": 154,
+      "retained_total_experts": 7238,
+      "pruned_total_experts": 4794,
+      "moe_layers": 47,
+      "allocation_table": [
+        { "class": "experts_native", "format": "mxfp4_native", "units": 4699, "unit_label": "expert_instance", "bytes_per_unit": 13369344, "class_bytes": 62822547456, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.per_layer_expert_layout.stored_bytes" },
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "units": 2539, "unit_label": "expert_instance", "bytes_per_unit": 9830400, "class_bytes": 24959385600, "second_gen": true, "bit_exact": false, "source_field": "formula: 2539 * 9830400" },
+        { "class": "router", "format": "native_dense_row_sliced", "units": 154, "unit_label": "retained_index", "bytes_per_unit": 385212, "class_bytes": 59322648, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.router_stored_bytes_per_retained_expert_across_moe_layers" },
+        { "class": "attention_qkv", "format": "native_fp8_e4m3", "units": 48, "unit_label": "tensor", "bytes_per_unit": 59834368, "class_bytes": 2872049664, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight" },
+        { "class": "attention_qkv_scales", "format": "native_f32", "units": 48, "unit_label": "tensor", "bytes_per_unit": 14656, "class_bytes": 703488, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight_scale_inv" },
+        { "class": "attention_o_proj", "format": "native_bf16", "units": 48, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 3221225472, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.o_proj.weight" },
+        { "class": "attention_sinks", "format": "native_bf16", "units": 39, "unit_label": "tensor", "bytes_per_unit": 128, "class_bytes": 4992, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum attention_sink_bias" },
+        { "class": "dense_ffn", "format": "native_fp8_e4m3", "units": 3, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 201326592, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 mlp weights" },
+        { "class": "dense_ffn_scales", "format": "native_f32", "units": 3, "unit_label": "tensor", "bytes_per_unit": 16384, "class_bytes": 49152, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 weight_scale_inv" },
+        { "class": "embeddings_lm_head", "format": "native_bf16", "units": 2, "unit_label": "tensor", "bytes_per_unit": 1249902592, "class_bytes": 2499805184, "second_gen": false, "bit_exact": true, "source_field": "inventory.json embed_tokens + lm_head" },
+        { "class": "norms", "format": "native_bf16", "units": 97, "unit_label": "tensor", "bytes_per_unit": 8192, "class_bytes": 794624, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layernorm tensors" }
+      ],
+      "expert_precision": {
+        "native_mxfp4_instances": 4699,
+        "q3_instances": 2539,
+        "instance_bytes_native": 13369344,
+        "instance_bytes_q3": 9830400,
+        "q3_percent": 35.08,
+        "per_layer_distribution": { "base_q3_per_layer": 54, "extra_q3_layers": [1], "extra_q3_per_layer": 55 },
+        "assignment_rule": "Q3 only on the lowest-REAP-salience survivors: per-layer Q3 count = 55 (layer 1) or 54 (layers 2-47); the highest-salience 99/100 survivors per layer keep bit-exact native MXFP4 (64.92% native overall); totals independent of ordering (uniform instance bytes)"
+      },
+      "second_gen_applied": [
+        { "class": "experts_second_gen", "format": "q3_affine_g128", "scope": "2539 of 7238 retained expert instances (lowest REAP salience first; 55 in layer 1, 54 in layers 2-47)", "bytes_before": 33944764416, "bytes_after": 24959385600, "reason": "minimal second-gen REQUIRED by budget: the pure-MXFP4 floor is 105622593688 B (+9.30%), outside the +/-2% band; no protected class needed cutting" }
+      ],
+      "planned_resident_weight_bytes": 96637214872,
+      "gib": 90.0004,
+      "decimal_gb": 96.637215,
+      "residual_bytes": 450712,
+      "residual_percent": 0.0005,
+      "within_tolerance": true,
+      "pure_mxfp4_floor_bytes": 105622593688,
+      "pure_mxfp4_floor_within_tolerance": false
+    },
+    {
+      "candidate_id": "reap45-mxfp4",
+      "description": "REAP45 (141 retained) + pure native MXFP4: zero second-generation quantization anywhere; lands inside the band by pruning alone",
+      "reap_percent_pruned": 45,
+      "rounding_rule": "retained = 256 - round_half_up(256 * 45 / 100) = 256 - round_half_up(115.2) = 256 - 115 = 141",
+      "retained_experts_per_layer": 141,
+      "retained_total_experts": 6627,
+      "pruned_total_experts": 5405,
+      "moe_layers": 47,
+      "allocation_table": [
+        { "class": "experts_native", "format": "mxfp4_native", "units": 6627, "unit_label": "expert_instance", "bytes_per_unit": 13369344, "class_bytes": 88598642688, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.per_layer_expert_layout.stored_bytes" },
+        { "class": "router", "format": "native_dense_row_sliced", "units": 141, "unit_label": "retained_index", "bytes_per_unit": 385212, "class_bytes": 54314892, "second_gen": false, "bit_exact": true, "source_field": "memory-report.json native.router_stored_bytes_per_retained_expert_across_moe_layers" },
+        { "class": "attention_qkv", "format": "native_fp8_e4m3", "units": 48, "unit_label": "tensor", "bytes_per_unit": 59834368, "class_bytes": 2872049664, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight" },
+        { "class": "attention_qkv_scales", "format": "native_f32", "units": 48, "unit_label": "tensor", "bytes_per_unit": 14656, "class_bytes": 703488, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.qkv_proj.weight_scale_inv" },
+        { "class": "attention_o_proj", "format": "native_bf16", "units": 48, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 3221225472, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum .self_attn.o_proj.weight" },
+        { "class": "attention_sinks", "format": "native_bf16", "units": 39, "unit_label": "tensor", "bytes_per_unit": 128, "class_bytes": 4992, "second_gen": false, "bit_exact": true, "source_field": "inventory.json tensors[] sum attention_sink_bias" },
+        { "class": "dense_ffn", "format": "native_fp8_e4m3", "units": 3, "unit_label": "tensor", "bytes_per_unit": 67108864, "class_bytes": 201326592, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 mlp weights" },
+        { "class": "dense_ffn_scales", "format": "native_f32", "units": 3, "unit_label": "tensor", "bytes_per_unit": 16384, "class_bytes": 49152, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layer-0 weight_scale_inv" },
+        { "class": "embeddings_lm_head", "format": "native_bf16", "units": 2, "unit_label": "tensor", "bytes_per_unit": 1249902592, "class_bytes": 2499805184, "second_gen": false, "bit_exact": true, "source_field": "inventory.json embed_tokens + lm_head" },
+        { "class": "norms", "format": "native_bf16", "units": 97, "unit_label": "tensor", "bytes_per_unit": 8192, "class_bytes": 794624, "second_gen": false, "bit_exact": true, "source_field": "inventory.json layernorm tensors" }
+      ],
+      "expert_precision": {
+        "native_mxfp4_instances": 6627,
+        "q3_instances": 0,
+        "instance_bytes_native": 13369344,
+        "instance_bytes_q3": 9830400,
+        "q3_percent": 0.0,
+        "per_layer_distribution": { "base_q3_per_layer": 0, "extra_q3_layers": [], "extra_q3_per_layer": 0 },
+        "assignment_rule": "no Q3 anywhere: every survivor keeps its bit-exact native MXFP4 packed weights and scales"
+      },
+      "second_gen_applied": [],
+      "second_gen_note": "none: the pure-MXFP4 total already lands inside the +/-2% band at +0.84%; budget requires no reduction, so no class is re-encoded",
+      "planned_resident_weight_bytes": 97448916748,
+      "gib": 90.7564,
+      "decimal_gb": 97.448917,
+      "residual_bytes": 812152588,
+      "residual_percent": 0.8404,
+      "within_tolerance": true,
+      "pure_mxfp4_floor_bytes": 97448916748,
+      "pure_mxfp4_floor_within_tolerance": true
+    }
+  ],
+  "construction_rules": [
+    "Construct every candidate ONLY from the pinned original Xiaomi weights (source_weights); never from any MLX or community checkpoint.",
+    "No MLX requantization EVER: the tacodevs checkpoint is never read as a tensor source, and already-quantized MLX/GPTQ tensors are never converted into production formats.",
+    "Surviving native MXFP4 (QAT) tensors keep their represented values: bit-exact packed-weight + scale copy (allocation rows bit_exact=true); no re-encoding.",
+    "BF16/FP16 intermediates are COMPUTE-ONLY: decoding MXFP4 -> BF16 does NOT restore pre-QAT/full-precision weights. Re-encoding from such an intermediate is second-generation quantization and is allowed only where allocation_table marks second_gen=true.",
+    "Second-generation quantization is applied class-by-class ONLY where the matched budget requires it, and every application (class, exact scope, bytes before/after, reason) is recorded in recipe.second_gen_applied - an empty list means none.",
+    "Affine byte math is exact integer: logical_parameters * bits // 8 + (logical_parameters // group_size) * 2; every affected parameter count is divisible by its group_size (documented per row).",
+    "Router handling follows docs/pruning-integrity.md: gate weight + e_score correction bias sliced row-wise to the retained count with exact dense row scaling (post_remap_stored_bytes_known=true); routing stays top-8 over the retained set; no packing cost is ever invented.",
+    "Expert selection comes from an external REAP quality map (--selection schema of src/mimo_halo/pruning); shape-only seed maps are structural placeholders and are never quality maps.",
+    "Byte budgets follow the accounting rule of docs/pruning-integrity.md: kept + unchanged + exact post-remap router; auxiliary components (mtp/vision/audio/dflash) recorded separately, never netted in.",
+    "Every candidate records exactly where second-gen was applied; candidates are otherwise bit-exact reconstructions of the pinned source."
+  ],
+  "staged_evaluation": {
+    "principle": "Design now, run later. Stages run in order; bad candidates die at the CHEAPEST stage that can kill them; stage 4 runs only for Pareto-frontier candidates.",
+    "kill_criteria_status": "PLACEHOLDER - every threshold below is null on purpose and MUST be calibrated against the observed stage-1 spread (all five candidates + the original-MiMo control) before any stage executes. No fixed threshold numbers are invented in this design.",
+    "stages": [
+      {
+        "stage": 1,
+        "name": "calibration distribution",
+        "measures": ["perplexity", "delta_perplexity_vs_original", "kl_divergence_nats", "on_policy_nll_nats", "top1_agreement", "code_agreement", "reasoning_agreement", "agent_tooluse_agreement"],
+        "kill_criteria": { "thresholds": null, "status": "placeholder_needs_calibration_against_stage1_spread", "calibrates": "max delta-perplexity, max KL, min agreement floors - to be set from the stage-1 spread across candidates + original control" },
+        "executed": false,
+        "killed_candidates": []
+      },
+      {
+        "stage": 2,
+        "name": "representative trajectories",
+        "measures": ["code trajectories", "reasoning trajectories", "agent/tool-use trajectories", "long-context slices 8k/16k-32k/32k-64k/64k-128k/128k+", "obvious pathological generation scan"],
+        "kill_criteria": { "thresholds": null, "status": "placeholder_needs_calibration_against_stage1_spread", "calibrates": "min per-slice agreement, max long-context degradation, max pathological-generation counts - set only after stage 1 results exist" },
+        "executed": false,
+        "killed_candidates": []
+      },
+      {
+        "stage": 3,
+        "name": "reduced benchmark suite",
+        "measures": ["reduced benchmark scores within practical limits"],
+        "kill_criteria": { "thresholds": null, "status": "placeholder_needs_calibration_against_stage2_spread", "calibrates": "min score deltas vs original on the reduced suite - set only after stage 2 results exist" },
+        "executed": false,
+        "killed_candidates": []
+      },
+      {
+        "stage": 4,
+        "name": "expensive full benchmarks (Pareto frontier only)",
+        "applies_to": "candidates on the quality-vs-resident-bytes Pareto frontier after stage 3",
+        "measures": ["full benchmark suite"],
+        "kill_criteria": null,
+        "kill_criteria_status": "selection stage - no kill; feeds the decision rule",
+        "executed": false,
+        "killed_candidates": []
+      }
+    ],
+    "long_context_slices": ["8k", "16k-32k", "32k-64k", "64k-128k", "128k_plus"]
+  },
+  "decision_rule": {
+    "ranking": "Rank survivors by QUALITY at matched size (~90 GiB, +/-2%). Quality evidence = the staged-eval record (perplexity/KL/agreement, trajectories, pathological scan, benchmarks).",
+    "throughput_excluded_from_ranking": true,
+    "throughput_exclusion_reason": "All throughput numbers are PRE-OPTIMISATION diagnostics: the current runtime may have better kernels for one datatype than another, an implementation artifact, not a compression property. A high-quality candidate is never rejected for poor current throughput; a worse candidate is never selected for a lucky kernel.",
+    "pareto": "Report the quality-vs-resident-bytes Pareto frontier among stage-3/4 survivors; infeasible or killed candidates stay listed with their exact numbers and kill stage.",
+    "promotion": "Top 2-3 candidates by quality proceed to runtime optimisation afterwards; the concurrency-scaling sweep runs only on those promoted candidates.",
+    "matched_size_enforcement": "A candidate outside the +/-2% band may not be built as specified; its recipe must be re-planned (class-by-class, recorded) until its planned total is inside the window."
+  },
+  "performance_diagnostics": {
+    "label": "PRE-OPTIMISATION",
+    "ranking_use": "excluded-from-quality-ranking",
+    "fields": {
+      "pp": { "unit": "tokens/s", "method": "llama-bench batched prompt processing (scripts/benchmark_matrix.py bench mode); batch-size dependent, NEVER labeled concurrency" },
+      "c1_decode": { "unit": "tokens/s", "method": "decode at 1 concurrent stream against one server (scripts/benchmark_matrix.py serve mode vocabulary)" },
+      "c4_decode": { "unit": "tokens/s aggregate", "method": "4 actually-concurrent HTTP decode streams; aggregate_tokens_per_s over the concurrent wave" },
+      "c8_decode": { "unit": "tokens/s aggregate", "method": "8 actually-concurrent HTTP decode streams; aggregate_tokens_per_s over the concurrent wave" },
+      "theoretical_bytes_per_token": { "unit": "bytes per decoded token", "method": "exact active-weight streaming formula (docs/experiments/compression-sweep.md, Performance diagnostics section); integer bytes" },
+      "active_weight_bandwidth": { "unit": "bytes/s", "method": "theoretical_bytes_per_token / measured decode seconds per token" }
+    }
+  },
+  "concurrency_scaling_sweep": {
+    "phase": "later",
+    "status": "shelved",
+    "gating_decision": "Concurrency/runtime tests are SHELVED until a quality baseline exists (original-MiMo control plus surviving candidates measured through stage 1-3). Runtime optimisation - and this sweep with it - stays gated behind the quality frontier: no concurrency number may be produced, compared, or acted on before then.",
+    "applies_to": "serious candidates only: those surviving to the Pareto frontier / top 2-3 quality selection",
+    "label": "PRE-RUNTIME-OPTIMISATION",
+    "levels": [1, 2, 4, 6, 8, 12, 16],
+    "per_point_records": {
+      "aggregate_decode_tok_s": "aggregate decode tokens/s across all streams at this concurrency",
+      "per_stream_tok_s": "aggregate / concurrency, plus per-stream distribution if the harness exposes it",
+      "pp_throughput_tok_s": "prompt-processing throughput measured alongside (batch-size dependent; never called concurrency)",
+      "ttft_ms": "time to first token per stream (unit: milliseconds)",
+      "inter_token_latency_ms": "inter-token latency per stream (unit: milliseconds)",
+      "ram_bytes": "resident RAM while serving this point (unit: bytes)",
+      "kernel_dispatch_cliffs": "obvious kernel/dispatch cliffs observed at this point (notes; empty if none)",
+      "expert_overlap": "if practical: unique experts touched and overlap across streams as concurrency rises (record availability honestly when not practical)"
+    },
+    "goals": {
+      "hardware_throughput_sweet_spot": "the concurrency where aggregate TPS stops improving materially",
+      "interactive_sweet_spot": "the concurrency where aggregate TPS stays high without per-stream speed becoming unpleasant"
+    },
+    "rules": [
+      "Do NOT assume powers-of-two or higher concurrency is better; measure every listed level.",
+      "If throughput drops at one concurrency level, profile it as a possible kernel/dispatch artifact BEFORE treating it as a hardware limit.",
+      "All numbers are PRE-RUNTIME-OPTIMISATION and must be labeled as such: use them to understand scaling behaviour and spot suspicious cliffs, NEVER to pick the compression-quality winner.",
+      "Quality-first rules are unchanged: concurrency results never reorder the quality ranking; only promoted candidates are measured."
+    ],
+    "harness": {
+      "scripts/benchmark_matrix.py": "serve mode vocabulary: concurrency = actually parallel HTTP requests against one llama-server (thread pool, one socket per request); aggregate_tokens_per_s derived from server-reported predicted token counts over the wave wall time; statuses ok/timeout/failed/parse_error; model recorded by basename only (no local paths in reports). Extend concurrency.levels to [1,2,4,6,8,12,16]. bench mode: PP points are batch-size knobs and are NEVER reported as concurrency.",
+      "scripts/burst_replay.py": "schedule vocabulary: schema_version 1, events[{t_s, kind, prompt_tokens, gen_tokens}], scale; per-event latency_s/start_lag_s/predicted_tokens give TTFT and inter-token latency for the interactive sweet spot; 'successful requests per replay wall-hour' is schedule-specific observed throughput."
+    }
+  },
+  "prior_information": {
+    "statement": "Prior information used, nothing copied: every byte figure in this config derives from OUR inventory of the ORIGINAL Xiaomi weights; the tacodevs work contributes only ordering priors and vocabulary.",
+    "used": [
+      "tacodevs published precision allocation as sensitivity prior: 141 projections = 93x affine b3 g128, 22x native mxfp4 b4 g32, 18x affine b2 g128, 8x affine b3 g64; other text tensors 8-bit affine g64; attn_bits 8; embed_bits 16; lm_bits 8 (sources: manifests/baselines/tacodevs-reap25/normalized.json precision_summary + published_evaluation.distribution.compression_eval; docs/baselines/tacodevs-reap25.md)",
+      "Quant-spec vocabulary bits/group_size/mode incl mxfp4 from tests/test_tacodevs_reap25.py _spec_cycle()",
+      "Their published calibration/held-out/on-policy metrics (PPL 9.271 -> 9.529, KL 0.8315, top1 79.5%; on-policy ALL 90.4% / code 90.8% / agent 88.5% / reasoning 94.2%) as context only - never reused as our measurements, never claimed reproduced",
+      "docs/experiments/memory-matched.md feasibility arithmetic (superseded by reference, unchanged on disk)"
+    ],
+    "not_copied": [
+      "No tacodevs/MLX tensor values, packed switch_mlp checkpoints, GPTQ artifacts, or their per-layer/per-projection precision map enter any candidate or any byte figure.",
+      "Their sensitivity ordering is not our measured sensitivity and not task-success evidence; we reproduce the class table as a PRIOR with its source pointer and adapt it to our budget.",
+      "The published REAP25 checkpoint proves nothing about optimal REAP25, and avoiding requantization proves nothing about REAP40/45 viability: the sweep exists to find the actual quality cliff.",
+      "Our class precisions differ from theirs where our budget demands (embeddings Q6 vs their embed 16; router/norms raised above their 8-bit) - deviations are recorded per class above."
+    ],
+    "our_sources": [
+      "manifests/models/mimo-v2.6-flash-rl/memory-report.json (native.*, prune_candidates[], precision_costs.*, components.*)",
+      "manifests/models/mimo-v2.6-flash-rl/inventory.json (tensors[] exact stored_bytes/logical_parameters per class; source.files[] digests)",
+      "docs/pruning-integrity.md (router row-slice and accounting-closure rules)"
+    ]
+  },
+  "claims_and_prohibitions": [
+    "Design status only: no inference functionality, no benchmark, and no calibration number is claimed by this config; every measurement slot starts null/empty.",
+    "Fit claims use exact integer bytes only; prose-unit matching is prohibited.",
+    "Missing measurements stay null/unavailable; they are never zero and never inferred.",
+    "Distribution metrics (ppl/KL/agreement/NLL) are controls, not capabilities; they are never cited as task success.",
+    "Never requantize the tacodevs MLX checkpoint; never treat BF16/FP16 intermediates as restored pre-QAT weights.",
+    "Throughput (including the concurrency sweep) never selects the compression-quality winner."
+  ]
+}

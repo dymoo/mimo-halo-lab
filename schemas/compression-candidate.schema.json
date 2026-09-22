@@ -1,0 +1,543 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mimo-halo-lab/schemas/compression-candidate.schema.json",
+  "title": "Compression candidate record",
+  "description": "Per-candidate record contract for the ~90 GiB memory-matched MiMo-V2.6-Flash compression sweep (docs/experiments/compression-sweep.md). One record per candidate recipe. Every byte figure is an exact integer traceable to manifests/models/mimo-v2.6-flash-rl/memory-report.json or inventory.json field arithmetic (never approximated). Every quality/performance measurement is null (or an empty array) until measured - never zero-filled, never inferred. Performance fields are PRE-OPTIMISATION diagnostics and are excluded from quality ranking.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "status",
+    "source_weights",
+    "recipe",
+    "size",
+    "metrics",
+    "performance_pre_optimisation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Record schema version; must be 1."
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable candidate identifier, e.g. reap35-mostly-mxfp4."
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "built",
+        "killed",
+        "stage-3",
+        "stage-4",
+        "pareto-frontier",
+        "selected",
+        "rejected"
+      ],
+      "description": "Lifecycle state. planned = spec only (design phase); killed must name the stage in metrics.kill."
+    },
+    "source_weights": { "$ref": "#/$defs/sourceWeights" },
+    "recipe": { "$ref": "#/$defs/recipe" },
+    "size": { "$ref": "#/$defs/size" },
+    "metrics": { "$ref": "#/$defs/metrics" },
+    "performance_pre_optimisation": { "$ref": "#/$defs/performance" },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-form provenance or caveat notes; null when none."
+    }
+  },
+  "$defs": {
+    "nullableNumber": { "type": ["number", "null"] },
+    "nullableInteger": { "type": ["integer", "null"] },
+    "sourceWeights": {
+      "type": "object",
+      "required": ["repo_id", "revision", "digest_basis"],
+      "properties": {
+        "repo_id": {
+          "const": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+          "description": "Original Xiaomi source only. The tacodevs MLX checkpoint is prior information and is NEVER a construction source."
+        },
+        "revision": {
+          "const": "5711b268169967567844e1e560e8a3966da959b1",
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "Pinned source revision; all candidates are constructed from these ORIGINAL weights."
+        },
+        "file_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Source tree file count (90 for the pinned revision)."
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Source tree total bytes (177767644228 for the pinned revision)."
+        },
+        "digest_basis": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "How the on-disk digests were verified, e.g. 'inventory.json source.files[].lfs_sha256 recomputed against $MIMO_LAB/source-models/...'. Placeholders only; never absolute local paths."
+        }
+      },
+      "additionalProperties": false
+    },
+    "classRow": {
+      "type": "object",
+      "required": [
+        "class",
+        "format",
+        "units",
+        "unit_label",
+        "bytes_per_unit",
+        "class_bytes",
+        "second_gen",
+        "bit_exact",
+        "source_field"
+      ],
+      "properties": {
+        "class": {
+          "enum": [
+            "experts_native",
+            "experts_second_gen",
+            "router",
+            "attention_qkv",
+            "attention_qkv_scales",
+            "attention_o_proj",
+            "attention_sinks",
+            "dense_ffn",
+            "dense_ffn_scales",
+            "embeddings_lm_head",
+            "norms"
+          ]
+        },
+        "format": {
+          "enum": [
+            "mxfp4_native",
+            "q3_affine_g128",
+            "q8_affine_g64",
+            "q6_affine_g128",
+            "native_fp8_e4m3",
+            "native_f32",
+            "native_bf16",
+            "native_dense_row_sliced"
+          ]
+        },
+        "units": { "type": "integer", "minimum": 0 },
+        "unit_label": { "enum": ["expert_instance", "retained_index", "tensor"] },
+        "bytes_per_unit": { "type": "integer", "minimum": 0 },
+        "class_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Exactly units * bytes_per_unit; integer bytes, no rounding."
+        },
+        "second_gen": {
+          "type": "boolean",
+          "description": "true iff this class's values were re-encoded from decoded source weights (second-generation quantization)."
+        },
+        "bit_exact": {
+          "type": "boolean",
+          "description": "true iff the stored bytes are a bit-exact copy of the source tensor payload (or an exact dense row-slice of it, router only)."
+        },
+        "source_field": {
+          "type": "string",
+          "minLength": 1,
+          "description": "memory-report.json / inventory.json field name, or the exact integer formula, the row derives from."
+        }
+      },
+      "additionalProperties": false
+    },
+    "recipe": {
+      "type": "object",
+      "required": [
+        "reap_percent_pruned",
+        "rounding_rule",
+        "original_experts_per_layer",
+        "retained_experts_per_layer",
+        "retained_total_experts",
+        "pruned_total_experts",
+        "moe_layers",
+        "allocation_table",
+        "expert_precision",
+        "second_gen_applied"
+      ],
+      "properties": {
+        "reap_percent_pruned": { "enum": [25, 30, 35, 40, 45] },
+        "rounding_rule": {
+          "const": "retained = 256 - round_half_up(256 * reap_percent_pruned / 100)"
+        },
+        "original_experts_per_layer": { "const": 256 },
+        "retained_experts_per_layer": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256
+        },
+        "retained_total_experts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "retained_experts_per_layer * 47 MoE layers (total retained expert instances)."
+        },
+        "pruned_total_experts": { "type": "integer", "minimum": 0 },
+        "moe_layers": { "const": 47 },
+        "allocation_table": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/classRow" },
+          "description": "One row per tensor class; rows sum exactly to size.resident_weight_bytes."
+        },
+        "expert_precision": {
+          "type": "object",
+          "required": [
+            "native_mxfp4_instances",
+            "q3_instances",
+            "instance_bytes_native",
+            "instance_bytes_q3",
+            "q3_percent",
+            "per_layer_distribution",
+            "assignment_rule"
+          ],
+          "properties": {
+            "native_mxfp4_instances": { "type": "integer", "minimum": 0 },
+            "q3_instances": { "type": "integer", "minimum": 0 },
+            "instance_bytes_native": { "const": 13369344 },
+            "instance_bytes_q3": { "const": 9830400 },
+            "q3_percent": { "type": "number", "minimum": 0, "maximum": 100 },
+            "per_layer_distribution": {
+              "type": "object",
+              "required": ["base_q3_per_layer", "extra_q3_layers", "extra_q3_per_layer"],
+              "properties": {
+                "base_q3_per_layer": { "type": "integer", "minimum": 0 },
+                "extra_q3_layers": {
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 1, "maximum": 47 },
+                  "description": "MoE layer indexes (1-based) whose Q3 count is extra_q3_per_layer: the first (q3_instances mod 47) by layer index."
+                },
+                "extra_q3_per_layer": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Q3 count for each listed extra layer, always base_q3_per_layer + 1; 0 with an empty layer list when q3_instances is 0. Invariant: base_q3_per_layer * 47 + len(extra_q3_layers) * (extra_q3_per_layer - base_q3_per_layer) == q3_instances."
+                }
+              },
+              "additionalProperties": false
+            },
+            "assignment_rule": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Which retained experts receive Q3 within a layer (lowest REAP salience first; highest-salience survivors keep bit-exact native MXFP4). Byte totals are independent of the choice because every instance costs identically."
+            }
+          },
+          "additionalProperties": false
+        },
+        "second_gen_applied": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["class", "format", "scope", "bytes_before", "bytes_after", "reason"],
+            "properties": {
+              "class": { "type": "string", "minLength": 1 },
+              "format": { "type": "string", "minLength": 1 },
+              "scope": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Exactly which tensors were re-encoded, e.g. '6,981 of 8,413 retained expert instances (lowest REAP salience first)'."
+              },
+              "bytes_before": { "type": "integer", "minimum": 0 },
+              "bytes_after": { "type": "integer", "minimum": 0 },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Why the matched budget required this class-by-class reduction."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Exhaustive list of every second-generation quantization applied to this candidate. Empty array = none anywhere (bit-exact MXFP4 passthrough plus native stored copies only)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "size": {
+      "type": "object",
+      "required": [
+        "resident_weight_bytes",
+        "target_bytes",
+        "gib",
+        "decimal_gb",
+        "residual_bytes",
+        "residual_percent",
+        "tolerance_percent",
+        "within_tolerance",
+        "pure_mxfp4_floor_bytes",
+        "pure_mxfp4_floor_within_tolerance"
+      ],
+      "properties": {
+        "resident_weight_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unit: bytes. Exact summed stored payload of the candidate text model (all allocation_table rows). Container/metadata overhead is not claimed before export."
+        },
+        "target_bytes": {
+          "const": 96636764160,
+          "description": "Unit: bytes. 90 GiB exactly (90 * 2^30)."
+        },
+        "gib": { "type": "number", "description": "Unit: GiB (bytes / 2^30). Never mixed with decimal GB." },
+        "decimal_gb": { "type": "number", "description": "Unit: decimal GB (bytes / 10^9). Never mixed with GiB." },
+        "residual_bytes": {
+          "type": "integer",
+          "description": "Unit: bytes. resident_weight_bytes - target_bytes; may be negative."
+        },
+        "residual_percent": {
+          "type": "number",
+          "description": "Unit: percent of target_bytes."
+        },
+        "tolerance_percent": {
+          "const": 2,
+          "description": "Matched-budget tolerance: +/-2% of target_bytes = +/-1932735283 bytes."
+        },
+        "within_tolerance": {
+          "type": "boolean",
+          "description": "True iff abs(residual_bytes) <= 1932735283."
+        },
+        "pure_mxfp4_floor_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Unit: bytes. Total if every surviving tensor stayed at native MXFP4 / native stored bytes with zero second-gen. Feasibility-honesty figure; may be outside tolerance."
+        },
+        "pure_mxfp4_floor_within_tolerance": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "slice": {
+      "type": "object",
+      "required": ["delta_perplexity", "agreement_fraction", "notes"],
+      "properties": {
+        "delta_perplexity": {
+          "type": ["number", "null"],
+          "description": "Unit: perplexity points vs original MiMo on this context-length slice; null until measured."
+        },
+        "agreement_fraction": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Unit: fraction in [0,1]; null until measured."
+        },
+        "notes": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "kill",
+        "calibration",
+        "on_policy_nll_nats",
+        "agreement",
+        "long_context_degradation",
+        "pathological_generations",
+        "benchmarks"
+      ],
+      "properties": {
+        "kill": {
+          "type": "object",
+          "required": ["executed", "stage_reached", "killed", "criterion"],
+          "properties": {
+            "executed": { "type": "boolean" },
+            "stage_reached": {
+              "type": ["integer", "null"],
+              "minimum": 1,
+              "maximum": 4,
+              "description": "Staged-eval stage reached (1..4); null until any stage executes."
+            },
+            "killed": { "type": "boolean" },
+            "criterion": {
+              "type": ["string", "null"],
+              "description": "The calibrated stage-kill criterion actually applied; null while not killed. Thresholds come from the stage config (placeholders until calibrated against stage-1 spread)."
+            }
+          },
+          "additionalProperties": false
+        },
+        "calibration": {
+          "type": "object",
+          "required": ["perplexity", "delta_perplexity_vs_original", "kl_divergence_nats", "corpus"],
+          "properties": {
+            "perplexity": {
+              "type": ["number", "null"],
+              "exclusiveMinimum": 0,
+              "description": "Unit: perplexity (calibration set). Null until measured."
+            },
+            "delta_perplexity_vs_original": {
+              "type": ["number", "null"],
+              "description": "Unit: perplexity points (candidate - original MiMo); positive = worse. Null until measured."
+            },
+            "kl_divergence_nats": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "description": "Unit: nats (per-token KL, original || candidate). Null until measured."
+            },
+            "corpus": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "on_policy_nll_nats": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "Unit: nats per assistant token on on-policy generations. Null until measured."
+        },
+        "agreement": {
+          "type": "object",
+          "required": [
+            "top1_fraction",
+            "code_fraction",
+            "reasoning_fraction",
+            "agent_tooluse_fraction",
+            "corpus"
+          ],
+          "properties": {
+            "top1_fraction": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Unit: fraction in [0,1] (top-1 token agreement vs original MiMo). Null until measured."
+            },
+            "code_fraction": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Unit: fraction in [0,1] on the code slice. Null until measured."
+            },
+            "reasoning_fraction": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Unit: fraction in [0,1] on the reasoning slice. Null until measured."
+            },
+            "agent_tooluse_fraction": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Unit: fraction in [0,1] on the agent/tool-use slice. Null until measured."
+            },
+            "corpus": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "long_context_degradation": {
+          "type": "object",
+          "required": ["8k", "16k-32k", "32k-64k", "64k-128k", "128k_plus"],
+          "properties": {
+            "8k": { "$ref": "#/$defs/slice" },
+            "16k-32k": { "$ref": "#/$defs/slice" },
+            "32k-64k": { "$ref": "#/$defs/slice" },
+            "64k-128k": { "$ref": "#/$defs/slice" },
+            "128k_plus": { "$ref": "#/$defs/slice" }
+          },
+          "additionalProperties": false,
+          "description": "Long-context degradation by sliced context length. Every slice key is always present; values null until measured."
+        },
+        "pathological_generations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["finding", "severity", "stage", "reference"],
+            "properties": {
+              "finding": { "type": "string", "minLength": 1 },
+              "severity": { "enum": ["minor", "major", "critical"] },
+              "stage": { "type": "integer", "minimum": 1, "maximum": 4 },
+              "reference": {
+                "type": ["string", "null"],
+                "description": "Artifact/manifest key pointing at the stored sample; never raw trace content, prompts, or repo identifiers."
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Obvious pathological generations observed. Empty array = none observed at any executed stage; explicitly recorded, never silently omitted."
+        },
+        "benchmarks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "suite", "score", "unit", "status", "stage", "notes"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "suite": { "type": "string", "minLength": 1 },
+              "score": { "type": ["number", "null"] },
+              "unit": { "type": "string", "minLength": 1, "description": "Score unit, e.g. pass@1, percent." },
+              "status": { "enum": ["ran", "not_ran", "skipped"] },
+              "stage": { "type": "integer", "minimum": 1, "maximum": 4 },
+              "notes": { "type": ["string", "null"] }
+            },
+            "additionalProperties": false
+          },
+          "description": "Benchmark scores within practical limits. Empty array = none run yet; not_ran/skipped rows are explicit, never zeros."
+        }
+      },
+      "additionalProperties": false
+    },
+    "perfPoint": {
+      "type": "object",
+      "required": ["value", "unit", "method"],
+      "properties": {
+        "value": { "type": ["number", "null"] },
+        "unit": { "const": "tokens/s" },
+        "method": {
+          "type": ["string", "null"],
+          "description": "How the number was produced; when non-null it must state the PRE-RUNTIME-OPTIMISATION kernel set used."
+        }
+      },
+      "additionalProperties": false
+    },
+    "performance": {
+      "type": "object",
+      "required": [
+        "label",
+        "ranking_use",
+        "pp",
+        "c1_decode",
+        "c4_decode",
+        "c8_decode",
+        "theoretical_bytes_per_token",
+        "active_weight_bandwidth"
+      ],
+      "properties": {
+        "label": { "const": "PRE-OPTIMISATION" },
+        "ranking_use": {
+          "const": "excluded-from-quality-ranking",
+          "description": "Throughput never selects or rejects the compression-quality winner: current kernels may favour one datatype as an implementation artifact."
+        },
+        "pp": {
+          "allOf": [{ "$ref": "#/$defs/perfPoint" }],
+          "description": "Prompt-processing throughput. Unit: tokens/s. PRE-OPTIMISATION diagnostic."
+        },
+        "c1_decode": {
+          "allOf": [{ "$ref": "#/$defs/perfPoint" }],
+          "description": "Decode throughput at concurrency 1. Unit: tokens/s. PRE-OPTIMISATION diagnostic."
+        },
+        "c4_decode": {
+          "allOf": [{ "$ref": "#/$defs/perfPoint" }],
+          "description": "Aggregate decode throughput at concurrency 4. Unit: tokens/s. PRE-OPTIMISATION diagnostic."
+        },
+        "c8_decode": {
+          "allOf": [{ "$ref": "#/$defs/perfPoint" }],
+          "description": "Aggregate decode throughput at concurrency 8. Unit: tokens/s. PRE-OPTIMISATION diagnostic."
+        },
+        "theoretical_bytes_per_token": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Unit: bytes per decoded token of active weights streamed (exact formula in docs/experiments/compression-sweep.md). Null until computed."
+        },
+        "active_weight_bandwidth": {
+          "type": "object",
+          "required": ["value", "unit", "note"],
+          "properties": {
+            "value": { "type": ["number", "null"] },
+            "unit": { "const": "bytes/s" },
+            "note": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false,
+          "description": "Theoretical bytes/decoded-token divided by measured decode seconds/token. Unit of value: bytes/s. Null until both inputs exist."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
