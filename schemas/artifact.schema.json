@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/dymoo/mimo-halo-lab/main/schemas/artifact.schema.json",
+  "title": "MiMo Halo artifact manifest",
+  "description": "Public contract for manifest.json sidecars created by mimo_halo.artifacts. Byte fields are integer bytes. The canonical manifest digest (manifest_sha256) is the SHA-256 of the canonical JSON form (sorted keys, compact separators, ASCII-safe UTF-8) of the manifest object with the manifest_sha256 field excluded; it provides integrity only and is not an authenticity or signature claim.",
+  "type": "object",
+  "required": ["schema_version", "kind", "seed", "parents", "production", "inputs", "files", "manifest_sha256"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "kind": {
+      "description": "Artifact stage. Stage requirements: calibration needs calibration_config and a seed; pruned needs an expert_map and a seed; recovered needs a pruned parent and a seed; quantized needs pruned + recovered + calibration-post-recovery parents and a quant_assignment; evaluation needs a candidate parent and a metrics sidecar. Unquantized stages never require quant fields.",
+      "enum": ["dataset", "calibration", "pruned", "recovered", "quantized", "evaluation"]
+    },
+    "created_at": {
+      "description": "Caller-supplied creation timestamp. Omitted (not zero) when not provided, so identical inputs stay byte-identical.",
+      "type": "string",
+      "minLength": 1
+    },
+    "seed": {
+      "description": "Explicit deterministic seed for seeded stages; null when the stage has no seeded computation. Unknown is null, never zero.",
+      "type": ["integer", "null"]
+    },
+    "parents": {
+      "description": "Lineage: digests of parent artifacts (their canonical manifest digests), keyed by role. No anonymous moving branches anywhere in lineage.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["role", "sha256"],
+        "additionalProperties": false,
+        "properties": {
+          "role": { "type": "string", "minLength": 1 },
+          "kind": {
+            "description": "Declared parent stage. When present it must match the role: dataset->dataset, pruned->pruned, recovered->recovered, calibration-post-recovery->calibration.",
+            "$ref": "#/$defs/kind"
+          },
+          "sha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "production": {
+      "type": "object",
+      "required": ["requested", "official_source", "policy"],
+      "additionalProperties": false,
+      "properties": {
+        "requested": { "type": "boolean" },
+        "official_source": {
+          "description": "The declared official Xiaomi source. Declaration-based only: no signature verification is performed and none is claimed.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["url", "revision"],
+              "additionalProperties": false,
+              "properties": {
+                "url": { "type": "string", "pattern": "^https://" },
+                "revision": {
+                  "description": "Immutable full revision: a 40-hex git/HF commit SHA or a 64-hex content digest. Moving refs and abbreviated SHAs are rejected by create and verify.",
+                  "type": "string",
+                  "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+                }
+              }
+            }
+          ]
+        },
+        "policy": { "type": "string", "minLength": 1 }
+      }
+    },
+    "inputs": {
+      "description": "Structured stage inputs referenced by role; each value is the file name inside the artifact root, digested via files.",
+      "type": "object",
+      "propertyNames": { "enum": ["calibration_config", "expert_map", "quant_assignment"] },
+      "additionalProperties": { "type": "string", "pattern": "^(calibration_config|expert_map|quant_assignment)\\.json$" }
+    },
+    "files": {
+      "description": "Every payload file and every sidecar except manifest.json and checksums.txt, sorted by path. checksums.txt explains these files plus manifest.json itself.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "size_bytes"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "$ref": "#/$defs/relativePath" },
+          "sha256": { "$ref": "#/$defs/sha256" },
+          "size_bytes": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "manifest_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "kind": {
+      "enum": ["dataset", "calibration", "pruned", "recovered", "quantized", "evaluation"]
+    },
+    "relativePath": {
+      "description": "Relative POSIX path confined to the artifact root; no absolute paths, traversal, backslashes, or empty components. Symlinks are rejected outright.",
+      "type": "string",
+      "pattern": "^(?!/)(?!\\.)(?!.*(^|/)\\.\\.?(/|$)).+$",
+      "not": { "pattern": "[\\\\\\x00]" }
+    },
+    "sidecarName": {
+      "enum": [
+        "manifest.json",
+        "checksums.txt",
+        "commands.txt",
+        "source_commits.json",
+        "dataset_manifest.json",
+        "metrics.json",
+        "environment.json"
+      ]
+    }
+  }
+}
