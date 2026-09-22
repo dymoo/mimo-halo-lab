@@ -146,9 +146,16 @@ class Episode:
     downweighted_events: int
     capabilities: list[str]
     weight: float
+    # Optional taxonomy labels (docs/datasets.md "Taxonomies"); each maps to an
+    # optional property in schemas/episode.schema.json and stays None until the
+    # labeler has evidence — absent facts are never guessed.
+    primary_capability: str | None = None
+    languages: list[str] | None = None
+    difficulty: str | None = None
+    downweight_classes: list[str] | None = None
 
     def to_public(self) -> dict:
-        return {
+        out: dict = {
             "episode_id": self.episode_id,
             "turn_index": self.turn_index,
             "started_at": self.started_at,
@@ -163,6 +170,16 @@ class Episode:
             "capabilities": self.capabilities,
             "weight": round(self.weight, 4),
         }
+        # omit-null encoding: unlabeled fields stay out of the document
+        if self.primary_capability is not None:
+            out["primary_capability"] = self.primary_capability
+        if self.languages is not None:
+            out["languages"] = list(self.languages)
+        if self.difficulty is not None:
+            out["difficulty"] = self.difficulty
+        if self.downweight_classes is not None:
+            out["downweight_classes"] = list(self.downweight_classes)
+        return out
 
 
 @dataclass
