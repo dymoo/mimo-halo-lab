@@ -97,26 +97,32 @@
   "config_sha256": "e1b8d437fddc3ee779c82678f2f06f18da5f74d9712d7f4442067aa36dec7374",
   "golden": {
     "bank_status": "not_ready",
-    "eligible_count": 0,
-    "ineligible_count": 2525,
+    "eligible_count": 36,
+    "ineligible_count": 2491,
     "reserved_count": 235,
-    "reserved_eligible_count": 0,
+    "reserved_eligible_count": 36,
     "non_reserved_eligible_count": 0,
     "missing_field_counts": {
-      "repo_identifier": 2066,
-      "starting_revision": 2050,
-      "test_oracle": 2525
+      "repo_identifier": 2005,
+      "starting_revision": 1970,
+      "test_oracle": 2463
     },
     "bank_bounds": {
       "min_tasks": 50,
       "max_tasks": 200
     },
-    "blocker": "reserved+eligible tasks 0 < minimum 50; missing prerequisites: repo_identifier missing for 2066, starting_revision missing for 2050, test_oracle missing for 2525; no oracles may be fabricated from chat records; register private oracles and start revisions before freezing"
+    "blocker": "reserved+eligible tasks 36 < minimum 50; missing prerequisites: repo_identifier missing for 2005, starting_revision missing for 1970, test_oracle missing for 2463; no oracles may be fabricated from chat records; register private oracles and start revisions before freezing",
+    "oracle_registrations": 64,
+    "evidence_fills": {
+      "repo_identifier": 63,
+      "starting_revision": 82
+    },
+    "frozen_count": 0
   },
   "partition": {
-    "task_groups_assigned": 2525,
+    "task_groups_assigned": 2527,
     "counts": {
-      "pruning": 922,
+      "pruning": 924,
       "quant": 486,
       "recovery": 507,
       "validation": 258,
@@ -126,7 +132,7 @@
     "quarantined_identity_failures": 58,
     "frozen_respected": 2524,
     "reserved_golden_groups": 235,
-    "reserved_golden_ready": 0,
-    "reserved_golden_not_ready": 235
+    "reserved_golden_ready": 36,
+    "reserved_golden_not_ready": 199
   }
 }

@@ -197,9 +197,10 @@ def cmd_normalize(args) -> int:
 
 
 def _session_document(trace: SessionTrace, include_text: bool) -> dict:
+    from .labeling import label_episodes
     from .session import segment_episodes
 
-    episodes = segment_episodes(trace)
+    episodes = label_episodes(trace, segment_episodes(trace))
     return {
         "schema_version": "1.0.0",
         "kind": "mimo-halo-normalized-trace",
@@ -305,6 +306,51 @@ def _build_groups_from_index(config: dict, args) -> dict:
     return build_task_groups(traces, DEFAULT_ISSUE_PATTERN)
 
 
+def apply_evidence_index(groups: list[dict], evidence_index: dict) -> dict:
+    """Fill missing repo/revision fields from private evidence-backed records.
+
+    Fail-closed contract: every supplied field MUST carry an evidence pointer
+    (session id sha256 + event index) proving it was recorded in real trace
+    history; a record without pointers, or naming an unknown task, aborts the
+    run. Fills are strictly additive: a harness-recorded group value is never
+    overridden, and nothing here can supply a test oracle (golden.py keeps
+    deciding oracle presence from the oracle index alone).
+    """
+    if not evidence_index:
+        return {"repo_identifier": 0, "starting_revision": 0}
+    by_id = {g["group_id"]: g for g in groups}
+    fills = {"repo_identifier": 0, "starting_revision": 0}
+    for task_id, record in sorted(evidence_index.items()):
+        group = by_id.get(task_id)
+        if group is None:
+            raise TraceError(f"evidence index references unknown task: {task_id}")
+        if not isinstance(record, dict):
+            raise TraceError(f"evidence record must be an object: {task_id}")
+        pointers = record.get("evidence")
+        if not isinstance(pointers, dict):
+            raise TraceError(f"evidence record has no pointers: {task_id}")
+        for src_key, dst_key, field in (
+            ("repo_identifier", "repo_identifier", "repo_identifier"),
+            ("starting_revision", "start_revision", "starting_revision"),
+        ):
+            value = record.get(src_key)
+            if value is None:
+                continue
+            pointer = pointers.get(field)
+            if not (isinstance(pointer, dict)
+                    and isinstance(pointer.get("session_id_sha256"), str)
+                    and isinstance(pointer.get("event_index"), int)):
+                raise TraceError(
+                    f"evidence pointer (session id hash + event index) "
+                    f"missing for {task_id}.{field}")
+            if group.get(dst_key):
+                continue  # fill-only: harness-recorded value wins
+            group[dst_key] = value
+            record.setdefault("_applied", {})[field] = pointer
+            fills[field] += 1
+    return fills
+
+
 def cmd_freeze(args) -> int:
     config = load_config(Path(args.config))
     out_root = resolve_output_root(args.output_root)
@@ -316,6 +362,14 @@ def cmd_freeze(args) -> int:
         if not oracle_path.is_file():
             raise TraceError(f"oracle index not found: {oracle_path}")
         oracle_index = json.loads(oracle_path.read_text())
+
+    evidence_index = {}
+    if args.evidence_index:
+        evidence_path = Path(args.evidence_index)
+        if not evidence_path.is_file():
+            raise TraceError(f"evidence index not found: {evidence_path}")
+        evidence_index = json.loads(evidence_path.read_text())
+    evidence_fills = apply_evidence_index(groups_doc["groups"], evidence_index)
 
     salt = config["partition"]["salt"]
     reserved_ids = {
@@ -341,10 +395,18 @@ def cmd_freeze(args) -> int:
         "non_reserved_eligible_count": evaluation["non_reserved_eligible_count"],
         "missing_field_counts": evaluation["missing_field_counts"],
         "blocker": evaluation["blocker"],
+        "oracle_registrations": len(oracle_index),
+        "evidence_fills": evidence_fills,
+        "evidence_fills_total": sum(evidence_fills.values()),
+        # Contract: below the bank minimum no tasks are selected ("no fake
+        # tasks are selected"); only a READY bank materializes frozen tasks,
+        # and the migration guard then (correctly) treats them as frozen.
         "frozen_tasks": [
             {"task_id": c["task_id"], "repo_identifier": c["repo_identifier"],
              "starting_revision": c["starting_revision"], "issue_ref": c["issue_ref"]}
-            for c in evaluation["candidates"] if c["reserved"] and c["eligible"]
+            for c in evaluation["candidates"]
+            if c["reserved"] and c["eligible"]
+            and evaluation["bank_status"] == "ready"
         ],
         "note": "frozen tasks are reserved+eligible groups only; a training group "
                 "is never imported into golden when an oracle appears. Frozen tasks "
@@ -355,12 +417,18 @@ def cmd_freeze(args) -> int:
     _write_private(out_root / "traces" / "golden" / "freeze-manifest.json", manifest)
 
     print(f"golden bank status: {evaluation['bank_status']}")
+    print(f"candidates in: {len(evaluation['candidates'])} "
+          f"(reserved: {evaluation['reserved_count']})")
+    print(f"oracle registrations: {len(oracle_index)}; "
+          f"evidence fills: repo_identifier={evidence_fills['repo_identifier']}, "
+          f"starting_revision={evidence_fills['starting_revision']}")
     print(f"reserved golden groups: {evaluation['reserved_count']} "
           f"(reserved+eligible: {evaluation['reserved_eligible_count']}, "
           f"eligible but unreserved: {evaluation['non_reserved_eligible_count']})")
     print(f"eligible: {evaluation['eligible_count']} / candidates: {len(evaluation['candidates'])}")
     if evaluation["missing_field_counts"]:
         print(f"missing fields: {evaluation['missing_field_counts']}")
+    print(f"frozen tasks: {len(manifest['frozen_tasks'])}")
     print(f"artifacts -> {out_root / 'traces' / 'golden'}")
     _update_public_summary("golden", {
         "bank_status": evaluation["bank_status"],
@@ -372,6 +440,9 @@ def cmd_freeze(args) -> int:
         "missing_field_counts": evaluation["missing_field_counts"],
         "bank_bounds": evaluation["bank_bounds"],
         "blocker": evaluation["blocker"],
+        "oracle_registrations": len(oracle_index),
+        "evidence_fills": evidence_fills,
+        "frozen_count": len(manifest["frozen_tasks"]),
     })
     return 0
 
@@ -667,6 +738,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     add_common(p)
     p.add_argument("--oracle-index", default=None,
                    help="private JSON mapping task_id -> test oracle descriptor")
+    p.add_argument("--evidence-index", default=None,
+                   help="private JSON mapping task_id -> evidence-backed field "
+                        "records (repo_identifier/starting_revision, each with "
+                        "a session-id-hash + event-index pointer); fills only "
+                        "fields the harness did not record")
     p.set_defaults(func=cmd_freeze)
 
     p = sub.add_parser(
