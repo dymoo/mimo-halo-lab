@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "experiment",
+  "name": "labeling-pilot",
+  "status": "complete",
+  "date": "2026-09-22",
+  "hypothesis": "Typed judgments over redacted episodes provide labels that measurably improve on (or reliably flag errors in) the deterministic rule labeler (src/mimo_halo/traces/labeling.py).",
+  "verdict": "supported",
+  "pre_registered_criteria": {
+    "written_before_judging": true,
+    "record": "$MIMO_LAB/scratch/labeling-pilot/frame-summary.json (mtime precedes judgments.json)",
+    "unit": "10 hand-inspected disagreements, verdicts in {judge_better, rule_better, ambiguous}",
+    "supported": "judge_better >= 6 and rule_better <= 2",
+    "falsified": "rule_better >= 6 and judge_better <= 2",
+    "inconclusive": "anything else, including fewer than 10 inspectable disagreements",
+    "construct_check_not_gating": "reported separately: difficulty exact agreement and within-one-level rate"
+  },
+  "method": {
+    "sample": {
+      "frame": "all episodes of the raw local harness transcripts (claude/codex/pi/omp), single full pass, 2026-09-22",
+      "sessions_parsed": 4140,
+      "sessions_failed": 0,
+      "episodes_seen": 40381,
+      "excluded": {
+        "golden_partition_episodes": 6229,
+        "reason_golden": "contamination rule: the golden partition never enters calibration/observation corpora",
+        "sessions_unassigned": 80,
+        "sessions_multi_partition": 27,
+        "group_stats": {"no_cwd": 32, "no_prompt_no_ref": 9, "cross_harness_prompt": 39}
+      },
+      "frame_episodes": 34152,
+      "strata": "cells = (partition, rule difficulty) over the five non-golden partitions; quota = 2-per-cell floor + largest-remainder proportional fill to 200; within-cell pick = capability round-robin, episodes ordered by sha256(seed|episode_id)",
+      "seed": "labeling-pilot-v1",
+      "target": 200,
+      "sample_size": 200,
+      "ids": "episode ids are stable sha256 hashes (episode_id); no raw paths or prompts in any output"
+    },
+    "rule_labels": {
+      "producer": "src/mimo_halo/traces/labeling.py (deterministic, checked-in)",
+      "method": "recomputed in memory from raw transcripts with the checked-in labeler; the hash-light normalized corpus predates the labeler and carries no labels",
+      "tests": "tests/test_labeling.py: 31 passed, 14 subtests passed at pilot time",
+      "sampler": "scripts/labeling_pilot_sample.py"
+    },
+    "judgments": {
+      "tooling": "harness in-context judge_batch (typed questions; one state = one blinded redacted episode)",
+      "model_reported_by_batch_status": "openrouter/typesafe/jev-1.13-20260917",
+      "batch": "200/200 states answered, 0 failed, 11 questions each (2200 answers), batch wall 3.2s",
+      "blinding": "states contain raw facts only (event types, tool names, error flags, credential-redacted bounded text); no rule label and no labeler input hint (verification_hint/spam_hint/weight) was present; states carry no partition either",
+      "questions": [
+        {"id": "difficulty", "type": "score", "levels": ["D0", "D1", "D2", "D3", "D4"], "source": "docs/datasets.md Difficulty level anchors"},
+        {"id": "primary_capability", "type": "choice", "labels": 22, "source": "docs/datasets.md Capability tags table + primary-tag rule + boundary cases"},
+        {"id": "verification", "type": "bool", "source": "docs/datasets.md verification definition and boundary"},
+        {"id": "tag_<8>", "type": "bool", "subset": ["debugging", "compiler_interpretation", "test_interpretation", "verification", "recovery", "long_context", "shell", "repo_exploration"], "subset_rule": "five boundary-critical tags + top frame-frequency fill (ties alphabetical)"}
+      ],
+      "questions_spec": {"file": "$MIMO_LAB/scratch/labeling-pilot/questions.json", "sha256": "dab0612f167861b0d01ec1fd9788e7abea72eb0aaa2fccd56555d67e4b77f1e4"},
+      "self_consistency_twin_verification_questions": {"agree": 163, "n": 200, "rate": 0.815}
+    },
+    "hand_inspection": {
+      "selection_rule": "one hash-ordered disagreement per family across 10 families (difficulty, primary_capability, verification, and the 7 tag families excluding the verification twin), distinct episodes; selected before inspection",
+      "inspector": "pilot worker agent of this harness session, session model openrouter/xiaomi/mimo-v2.6-flash (independent of the judging model)",
+      "note": "single inspector, no second rater; limitation recorded"
+    }
+  },
+  "results": {
+    "difficulty": {
+      "n": 200,
+      "exact": {"count": 50, "rate": 0.25},
+      "within_one_level": {"count": 118, "rate": 0.59},
+      "confusion_rule_rows_judge_cols": {
+        "D0": {"D0": 9, "D1": 0, "D2": 12, "D3": 18, "D4": 13},
+        "D1": {"D0": 9, "D1": 2, "D2": 7, "D3": 14, "D4": 11},
+        "D2": {"D0": 0, "D1": 0, "D2": 6, "D3": 8, "D4": 8},
+        "D3": {"D0": 1, "D1": 0, "D2": 13, "D3": 25, "D4": 28},
+        "D4": {"D0": 0, "D1": 0, "D2": 5, "D3": 3, "D4": 8}
+      },
+      "marginals": {
+        "rule": {"D0": 52, "D1": 43, "D2": 22, "D3": 67, "D4": 16},
+        "judge": {"D0": 19, "D1": 2, "D2": 43, "D3": 68, "D4": 68}
+      },
+      "means_on_0_to_4_index": {"rule": 1.76, "judge": 2.82},
+      "by_decision_presence": {
+        "has_decision_false_n52": {"rule_mean": 0.0, "judge_mean": 2.5},
+        "has_decision_true_n148": {"rule_mean": 2.378, "judge_mean": 2.932}
+      }
+    },
+    "primary_capability": {
+      "n": 200,
+      "exact": {"count": 66, "rate": 0.33},
+      "exact_on_rule_labeled_only": {"count": 66, "of": 172, "rate": 0.384},
+      "rule_unlabeled_rows": 28,
+      "disagreement_patterns": {
+        "rule_omitted_judge_picked": 28,
+        "rule_purpose_to_judge_vehicle": 39,
+        "rule_vehicle_to_judge_purpose": 7,
+        "other": 60
+      },
+      "top_disagreement_pairs": [
+        {"n": 7, "rule": "debugging", "judge": "implementation"},
+        {"n": 7, "rule": "implementation", "judge": "shell"},
+        {"n": 7, "rule": "repo_exploration", "judge": "tool_use"},
+        {"n": 6, "rule": "implementation", "judge": "planning"},
+        {"n": 5, "rule": null, "judge": "shell"},
+        {"n": 5, "rule": null, "judge": "tool_use"},
+        {"n": 5, "rule": "implementation", "judge": "debugging"},
+        {"n": 4, "rule": null, "judge": "repo_exploration"},
+        {"n": 4, "rule": "compiler_interpretation", "judge": "debugging"},
+        {"n": 4, "rule": "debugging", "judge": "shell"},
+        {"n": 4, "rule": "planning", "judge": "tool_use"},
+        {"n": 4, "rule": "shell", "judge": "repo_exploration"},
+        {"n": 4, "rule": "test_interpretation", "judge": "repo_exploration"},
+        {"n": 4, "rule": "verification", "judge": "shell"}
+      ],
+      "tags_never_emitted_by_rule_in_frame": ["git", "refactoring", "code_review", "architecture", "dependency_reasoning", "concurrency", "database", "frontend", "backend", "systems", "build_tooling"],
+      "judge_distinct_choices": 15
+    },
+    "verification_noul": {"n": 200, "agree": 150, "disagree": 50, "rate": 0.75,
+      "disagreement_directions": {"rule_false_judge_true": 36, "rule_true_judge_false": 14}},
+    "per_tag_nouls": {
+      "debugging": {"n": 200, "both": 13, "rule_only": 2, "judge_only": 117, "neither": 68, "agree": 81, "rate": 0.405},
+      "compiler_interpretation": {"n": 200, "both": 10, "rule_only": 4, "judge_only": 30, "neither": 156, "agree": 166, "rate": 0.83},
+      "test_interpretation": {"n": 200, "both": 15, "rule_only": 6, "judge_only": 64, "neither": 115, "agree": 130, "rate": 0.65},
+      "verification": {"n": 200, "both": 45, "rule_only": 3, "judge_only": 62, "neither": 90, "agree": 135, "rate": 0.675},
+      "recovery": {"n": 200, "both": 45, "rule_only": 5, "judge_only": 62, "neither": 88, "agree": 133, "rate": 0.665},
+      "long_context": {"n": 200, "both": 73, "rule_only": 3, "judge_only": 92, "neither": 32, "agree": 105, "rate": 0.525},
+      "shell": {"n": 200, "both": 119, "rule_only": 0, "judge_only": 27, "neither": 54, "agree": 173, "rate": 0.865},
+      "repo_exploration": {"n": 200, "both": 84, "rule_only": 8, "judge_only": 65, "neither": 43, "agree": 127, "rate": 0.635}
+    },
+    "disagreement_census": {
+      "total": 816,
+      "by_family": {
+        "primary_capability": 134,
+        "tag:debugging": 119,
+        "difficulty": 82,
+        "tag:long_context": 95,
+        "tag:repo_exploration": 73,
+        "tag:test_interpretation": 70,
+        "tag:recovery": 67,
+        "tag:verification": 65,
+        "verification": 50,
+        "tag:compiler_interpretation": 34,
+        "tag:shell": 27
+      },
+      "difficulty_patterns": {
+        "no_decision_floor_rule_d0": 43,
+        "judge_harder_with_decision": 33,
+        "rule_structural_harder": 6,
+        "judge_harder_total": 76,
+        "judge_easier_total": 6
+      },
+      "direction_note": "every tag family is dominated by judge-only positives (judge tags liberally, rule labeler omits rather than guesses); content inspection shows both genuine rule misses and judge over-reads of narration"
+    },
+    "hand_inspected_10": [
+      {"episode_id": "04268b3077a17e706e2eb99ce37e241c7b8b5ed4a211774164acbf210bd18403", "family": "difficulty", "rule": "D0", "judge": "D3", "verdict": "judge_better", "cause": "rule_error", "note": "64-event multi-system infrastructure episode with no retained decision text; has_decision=false pins the rule to the D0 no-decision floor while the content requires cross-subsystem diagnosis"},
+      {"episode_id": "04968bac4b188b5d153a29db3a8eac5735f7ed26a156fd37ba3261b9be4b9d09", "family": "primary_capability", "rule": "test_interpretation", "judge": "repo_exploration", "verdict": "judge_better", "cause": "rule_error", "note": "no-action rule fired on an error from a verification-prefixed shell command, but no test code/output was interpreted; episode is repository and web research (judge itself split repo_exploration vs shell)"},
+      {"episode_id": "125663597f48daea7db414e9e54fc132e9fd23908775999d7d3099949d79df69", "family": "verification", "rule": false, "judge": true, "verdict": "judge_better", "cause": "rule_error", "note": "staged fail-closed smoke tests of a deployed service run through shell commands outside the detector's test/build/lint prefix family (verification_events=0)"},
+      {"episode_id": "0286ca3b114db0b92aedfe6074144dc5a7896bfbb9b9a906ed2360aa6f9e0099", "family": "tag:debugging", "rule": false, "judge": true, "verdict": "ambiguous", "cause": "genuinely_ambiguous", "note": "hypothesis-driven diagnosis of failure causes with no defect-fixing edit inside the episode; taxonomy requires forming and fixing a defect, rule is literal, judge defensible under a looser reading"},
+      {"episode_id": "04d79841c44f6ed67f930b1618ff186f3d1ce28da3e16e358780b8ab9ab7f9d4", "family": "tag:long_context", "rule": false, "judge": true, "verdict": "judge_better", "cause": "rule_error", "note": "cross-module contract fixes spanning source, adapter and two test files with many tracked modifications; long_context requires >=40 events AND has_decision, and has_decision=false here for the same missing-decision-text reason"},
+      {"episode_id": "27728c1ef4d5a032bc34046031ff44b80a24ea3b72cf894f3a9fc3a97dbf01ae", "family": "tag:shell", "rule": false, "judge": true, "verdict": "rule_better", "cause": "judge_error", "note": "episode window contains only reasoning/assistant narration (tool_calls=0); the contract tags capabilities that events evidence and no shell event exists in this episode"},
+      {"episode_id": "0d4493bf0faf40514ab70018bf7481de3716e370917bc12fcde414861c343b99", "family": "tag:repo_exploration", "rule": false, "judge": true, "verdict": "judge_better", "cause": "rule_error", "note": "repository source read executed through the generic exec tool; the capability map keys on tool names, so shell-disguised exploration never maps to repo_exploration"},
+      {"episode_id": "061250bf6e2dc71201c23693f746a4cab3ff318b769ca334f8488810d9a166a4", "family": "tag:test_interpretation", "rule": false, "judge": true, "verdict": "judge_better", "cause": "rule_error", "note": "episode reads test fixture diffs to infer expected behavior (the taxonomy definition) but runs no failing test; the rule fires only on error+test-run co-occurrence"},
+      {"episode_id": "226e1f93477d0a728d41f610747680c943b4e3b3bbd27f87cc7d64e5d00e5a99", "family": "tag:recovery", "rule": false, "judge": true, "verdict": "judge_better", "cause": "rule_error_vs_doc_boundary", "note": "failed run followed by a corrective edit within the window with no re-run before the episode closed; datasets.md's boundary sentence says error followed by a correction, the contract table says followed by success, the implementation follows the latter; the judge follows the boundary sentence"},
+      {"episode_id": "1b7a0b4fb2dcc839975cd63669f490cf1344dcd9f346be550e81d97d7b84a2a8", "family": "tag:compiler_interpretation", "rule": false, "judge": true, "verdict": "rule_better", "cause": "judge_error", "note": "no compiler or type-checker diagnostic appears in any error event of the episode; only reasoning narration mentions type-check status; judge confidence was the lowest of the ten (0.58)"}
+    ],
+    "hand_inspection_tally": {"judge_better": 7, "rule_better": 2, "ambiguous": 1}
+  },
+  "honesty": {
+    "judging_model": "openrouter/typesafe/jev-1.13-20260917, reported by the harness judge_batch status field; TypeSafe/Jev credentials were present in this harness environment, so the judgments did run through that model",
+    "hand_inspection_model": "openrouter/xiaomi/mimo-v2.6-flash (this session's worker agent), independent of the judging model",
+    "rule_labeler": "deterministic code, no model involved",
+    "external_api_calls_by_pilot_code": "none; sampling and comparison are pure local code, judging used only the harness in-context judge tooling"
+  },
+  "evidence": {
+    "private": {
+      "root": "$MIMO_LAB/scratch/labeling-pilot/",
+      "files": ["frame-summary.json", "sample-index.json", "sample-states.jsonl", "questions.json", "judgments.json", "comparison.json", "handinspect.json"]
+    },
+    "doc": "docs/experiments/labeling-pilot.md",
+    "helper": "scripts/labeling_pilot_sample.py"
+  },
+  "privacy": {
+    "repo_files": "hashed episode ids and aggregates only; no episode content, prompts, paths, repo identifiers, or secrets",
+    "private_states": "credential-redacted bounded text under $MIMO_LAB only; never leaves the workstation",
+    "golden_partition": "excluded from the frame entirely (6229 episodes)"
+  }
+}
