@@ -1,0 +1,566 @@
+{
+  "schema_version": 1,
+  "repo": "dymoo/mimo-halo-lab",
+  "parent_spec": {
+    "planid": 0,
+    "number": 1,
+    "dbid": 5537396527,
+    "url": "https://github.com/dymoo/mimo-halo-lab/issues/1",
+    "labels": [
+      "ready-for-human",
+      "priority:p0"
+    ]
+  },
+  "issues": [
+    {
+      "planid": 1,
+      "number": 6,
+      "dbid": 5537418164,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/6",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 2,
+      "number": 7,
+      "dbid": 5537418377,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/7",
+      "depends_on_issues": [
+        6
+      ]
+    },
+    {
+      "planid": 3,
+      "number": 8,
+      "dbid": 5537418663,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/8",
+      "depends_on_issues": [
+        7
+      ]
+    },
+    {
+      "planid": 4,
+      "number": 9,
+      "dbid": 5537418961,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/9",
+      "depends_on_issues": [
+        7
+      ]
+    },
+    {
+      "planid": 5,
+      "number": 10,
+      "dbid": 5537419179,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/10",
+      "depends_on_issues": [
+        7
+      ]
+    },
+    {
+      "planid": 6,
+      "number": 11,
+      "dbid": 5537419409,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/11",
+      "depends_on_issues": [
+        7
+      ]
+    },
+    {
+      "planid": 7,
+      "number": 12,
+      "dbid": 5537423107,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/12",
+      "depends_on_issues": [
+        8,
+        9,
+        10,
+        11
+      ]
+    },
+    {
+      "planid": 8,
+      "number": 13,
+      "dbid": 5537423344,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/13",
+      "depends_on_issues": [
+        12
+      ]
+    },
+    {
+      "planid": 9,
+      "number": 14,
+      "dbid": 5537423640,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/14",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 10,
+      "number": 15,
+      "dbid": 5537423957,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/15",
+      "depends_on_issues": [
+        14
+      ]
+    },
+    {
+      "planid": 11,
+      "number": 16,
+      "dbid": 5537424247,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/16",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 12,
+      "number": 17,
+      "dbid": 5537424561,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/17",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 13,
+      "number": 18,
+      "dbid": 5537427536,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/18",
+      "depends_on_issues": [
+        17
+      ]
+    },
+    {
+      "planid": 14,
+      "number": 19,
+      "dbid": 5537427790,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/19",
+      "depends_on_issues": [
+        16,
+        18
+      ]
+    },
+    {
+      "planid": 15,
+      "number": 20,
+      "dbid": 5537428063,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/20",
+      "depends_on_issues": [
+        14,
+        18
+      ]
+    },
+    {
+      "planid": 16,
+      "number": 21,
+      "dbid": 5537428315,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/21",
+      "depends_on_issues": [
+        16,
+        17
+      ]
+    },
+    {
+      "planid": 17,
+      "number": 4,
+      "dbid": 5537413683,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/4",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 18,
+      "number": 22,
+      "dbid": 5537428545,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/22",
+      "depends_on_issues": [
+        4,
+        7
+      ]
+    },
+    {
+      "planid": 19,
+      "number": 23,
+      "dbid": 5537428794,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/23",
+      "depends_on_issues": [
+        22
+      ]
+    },
+    {
+      "planid": 20,
+      "number": 24,
+      "dbid": 5537431542,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/24",
+      "depends_on_issues": [
+        13,
+        22
+      ]
+    },
+    {
+      "planid": 21,
+      "number": 5,
+      "dbid": 5537414709,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/5",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 22,
+      "number": 25,
+      "dbid": 5537431804,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/25",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 23,
+      "number": 26,
+      "dbid": 5537432051,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/26",
+      "depends_on_issues": [
+        14,
+        25
+      ]
+    },
+    {
+      "planid": 24,
+      "number": 27,
+      "dbid": 5537432291,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/27",
+      "depends_on_issues": [
+        25
+      ]
+    },
+    {
+      "planid": 25,
+      "number": 3,
+      "dbid": 5537412496,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/3",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 26,
+      "number": 28,
+      "dbid": 5537458004,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/28",
+      "depends_on_issues": [
+        3,
+        27
+      ]
+    },
+    {
+      "planid": 27,
+      "number": 29,
+      "dbid": 5537458253,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/29",
+      "depends_on_issues": [
+        28
+      ]
+    },
+    {
+      "planid": 28,
+      "number": 30,
+      "dbid": 5537458531,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/30",
+      "depends_on_issues": [
+        28
+      ]
+    },
+    {
+      "planid": 29,
+      "number": 31,
+      "dbid": 5537458776,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/31",
+      "depends_on_issues": [
+        14,
+        29,
+        30
+      ]
+    },
+    {
+      "planid": 30,
+      "number": 32,
+      "dbid": 5537459020,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/32",
+      "depends_on_issues": [
+        21,
+        31
+      ]
+    },
+    {
+      "planid": 31,
+      "number": 33,
+      "dbid": 5537459301,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/33",
+      "depends_on_issues": [
+        2,
+        12,
+        13,
+        32
+      ]
+    },
+    {
+      "planid": 32,
+      "number": 34,
+      "dbid": 5537459565,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/34",
+      "depends_on_issues": [
+        2,
+        4,
+        20,
+        33
+      ]
+    },
+    {
+      "planid": 33,
+      "number": 35,
+      "dbid": 5537495123,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/35",
+      "depends_on_issues": [
+        2,
+        5,
+        23,
+        24,
+        34,
+        52
+      ]
+    },
+    {
+      "planid": 34,
+      "number": 36,
+      "dbid": 5537498243,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/36",
+      "depends_on_issues": [
+        2,
+        35
+      ]
+    },
+    {
+      "planid": 35,
+      "number": 37,
+      "dbid": 5537498486,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/37",
+      "depends_on_issues": [
+        36
+      ]
+    },
+    {
+      "planid": 36,
+      "number": 38,
+      "dbid": 5537498730,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/38",
+      "depends_on_issues": [
+        2,
+        4,
+        15,
+        37,
+        53
+      ]
+    },
+    {
+      "planid": 37,
+      "number": 39,
+      "dbid": 5537498971,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/39",
+      "depends_on_issues": [
+        25,
+        38
+      ]
+    },
+    {
+      "planid": 38,
+      "number": 40,
+      "dbid": 5537499239,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/40",
+      "depends_on_issues": [
+        26,
+        35
+      ]
+    },
+    {
+      "planid": 39,
+      "number": 41,
+      "dbid": 5537499527,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/41",
+      "depends_on_issues": [
+        30,
+        35
+      ]
+    },
+    {
+      "planid": 40,
+      "number": 42,
+      "dbid": 5537501716,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/42",
+      "depends_on_issues": [
+        40
+      ]
+    },
+    {
+      "planid": 41,
+      "number": 43,
+      "dbid": 5537502127,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/43",
+      "depends_on_issues": [
+        39,
+        42
+      ]
+    },
+    {
+      "planid": 42,
+      "number": 44,
+      "dbid": 5537502363,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/44",
+      "depends_on_issues": [
+        39
+      ]
+    },
+    {
+      "planid": 43,
+      "number": 45,
+      "dbid": 5537502605,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/45",
+      "depends_on_issues": [
+        12,
+        24,
+        42
+      ]
+    },
+    {
+      "planid": 44,
+      "number": 46,
+      "dbid": 5537502843,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/46",
+      "depends_on_issues": [
+        39,
+        42
+      ]
+    },
+    {
+      "planid": 45,
+      "number": 47,
+      "dbid": 5537503197,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/47",
+      "depends_on_issues": [
+        45,
+        46
+      ]
+    },
+    {
+      "planid": 46,
+      "number": 48,
+      "dbid": 5537505189,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/48",
+      "depends_on_issues": [
+        2,
+        5,
+        23,
+        24,
+        39,
+        46,
+        52
+      ]
+    },
+    {
+      "planid": 47,
+      "number": 49,
+      "dbid": 5537505432,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/49",
+      "depends_on_issues": [
+        47,
+        48
+      ]
+    },
+    {
+      "planid": 48,
+      "number": 50,
+      "dbid": 5537505679,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/50",
+      "depends_on_issues": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26
+      ]
+    },
+    {
+      "planid": 49,
+      "number": 51,
+      "dbid": 5537505924,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/51",
+      "depends_on_issues": [
+        3,
+        27
+      ]
+    },
+    {
+      "planid": 50,
+      "number": 2,
+      "dbid": 5537411093,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/2",
+      "depends_on_issues": []
+    },
+    {
+      "planid": 51,
+      "number": 52,
+      "dbid": 5537507420,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/52",
+      "depends_on_issues": [
+        2
+      ]
+    },
+    {
+      "planid": 52,
+      "number": 53,
+      "dbid": 5537507766,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/53",
+      "depends_on_issues": [
+        2
+      ]
+    }
+  ],
+  "labels": {
+    "canonical": [
+      "needs-triage",
+      "needs-info",
+      "ready-for-agent",
+      "ready-for-human",
+      "wontfix"
+    ],
+    "category": [
+      "bug",
+      "enhancement"
+    ],
+    "area": [
+      "area:dataset",
+      "area:docs",
+      "area:eval",
+      "area:hardware",
+      "area:hope",
+      "area:quant",
+      "area:reap",
+      "area:recovery",
+      "area:runtime"
+    ],
+    "priority": [
+      "priority:p0",
+      "priority:p1",
+      "priority:p2"
+    ],
+    "auxiliary": [
+      "blocked",
+      "hardware-needed",
+      "experiment",
+      "regression"
+    ]
+  }
+}

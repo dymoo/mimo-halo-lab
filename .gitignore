@@ -1,0 +1,42 @@
+# Local-only large payloads: models, datasets, traces, calibration, workspaces.
+# Private payloads stay on the workstation; Git carries only manifests and hashes.
+/models/
+/datasets/private/
+/traces/raw/
+/traces/normalized-private/
+/calibration/cache/
+/artifacts/models/
+/scratch/
+/.scratch/
+/.cache/
+/upstreams/
+
+# Secrets and environment configuration
+.env
+.env.*
+!.env.example
+
+# Model and binary artifacts
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.ggml
+
+# NumPy artifacts
+*.npy
+*.npz
+*.parquet.private
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS noise
+.DS_Store
