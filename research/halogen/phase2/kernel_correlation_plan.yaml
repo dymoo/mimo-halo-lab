@@ -1,0 +1,69 @@
+# Kernel correlation plan: join Phase-2 dynamic observations (rocprofv3) to
+# the Phase-1 static catalogue (research/halogen/results/kernel-catalogue.json).
+
+plan_version: 1
+
+inputs:
+  static:
+    catalogue: research/halogen/results/kernel-catalogue.json
+    schema: research/halogen/schemas/kernel-catalogue.schema.json
+    key_fields: [name, hash, vgpr, sgpr, lds, wave_size, likely_operation]
+  dynamic:
+    per_run_glob: "<capture_dir>/*_kernel_trace.csv"     # Kernel_Id, Kernel_Name,
+                                                         # VGPR_Count, SGPR_Count,
+                                                         # LDS_Block_Size, durations
+    pmc_glob: "<capture_dir>/*_pmc_*.csv"                # per-dispatch counters
+    pc_sampling_glob: "<capture_dir>/*_pcs_*.csv"        # sampled PCs, best effort
+
+match_ladder:            # first hit wins; every row records which rung matched
+  - rung: exact_name
+    how: Kernel_Name == catalogue row.name
+    confidence: high
+    covers: Halogen native kernels (HIP-registered names survive verbatim)
+  - rung: demangled_name
+    how: demangle(Kernel_Name) == demangle(row.name) (c++filt), then exact
+    confidence: high
+  - rung: resource_fingerprint
+    how: (VGPR_Count, SGPR_Count, LDS_Block_Size, wave_size) equality against
+         row.vgpr/sgpr/lds/wave_size; require uniqueness (exactly one catalogue
+         candidate) else escalate
+    confidence: medium
+    covers: stripped/renamed kernels, Tensile-generated names
+  - rung: address_to_hash
+    how: pc_sampling address -> runtime symbol via hsa_executable symbols in
+         hip_api/hsa trace, disassemble range, sha256 == row.hash
+    confidence: high
+    covers: name-agnostic confirmation; the hash makes it clean-room safe
+  - rung: unmatched
+    action: append to results/unmatched_kernels.json with the full dynamic row;
+            if the dispatch dominates runtime (>1% GPU busy), run
+            `tools/generate_catalogue.py` on the owning code object and
+            classify it (Phase-1 pipeline, no source reconstruction)
+
+outputs:
+  - path: research/halogen/results/correlation.csv
+    columns:
+      - capture_dir
+      - cell_id
+      - runtime
+      - dispatch_count
+      - kernel_name
+      - matched_row_name
+      - rung
+      - catalogue_hash
+      - likely_operation
+      - confidence
+      - total_gpu_ns
+      - pmc_ref
+  - path: research/halogen/results/unmatched_kernels.json
+  - path: research/halogen/results/correlation_summary.json
+    aggregates:
+      - match_rate_by_rung
+      - top_kernels_by_gpu_time_with_likely_operation
+      - per_corpustype_operation_mix
+
+sanity_gates:
+  - match_rate >= 0.95 by dispatch count before summarising
+  - resource_fingerprint rung must be unique or it is downgraded to unmatched
+  - never re-label a Phase-1 likely_operation from Phase-2 timing data; dynamic
+    evidence only selects among static rows (clean-room boundary)

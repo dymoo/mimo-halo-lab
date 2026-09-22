@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0.0",
+  "kind": "mimo-halo-discovery-summary",
+  "sources": {
+    "claude": {
+      "files": 618,
+      "non_transcript_records": 20,
+      "total_bytes": 380566431,
+      "parsed_sessions": 618,
+      "parse_failures": 0,
+      "empty_sessions": 0,
+      "event_count": 58924,
+      "tool_call_count": 21417,
+      "tool_result_count": 21443,
+      "unmatched_tool_calls": 1,
+      "unmatched_tool_results": 0,
+      "sessions_with_repo_identity": 0,
+      "sessions_with_start_revision": 0,
+      "sessions_with_branching": 582,
+      "sessions_with_sidechains": 527,
+      "redaction_hits": 605
+    },
+    "codex": {
+      "files": 2020,
+      "non_transcript_records": 0,
+      "total_bytes": 6427779489,
+      "parsed_sessions": 2020,
+      "parse_failures": 0,
+      "empty_sessions": 41,
+      "event_count": 606818,
+      "tool_call_count": 116688,
+      "tool_result_count": 116689,
+      "unmatched_tool_calls": 6,
+      "unmatched_tool_results": 0,
+      "sessions_with_repo_identity": 1302,
+      "sessions_with_start_revision": 1462,
+      "sessions_with_branching": 842,
+      "sessions_with_sidechains": 0,
+      "redaction_hits": 8171
+    },
+    "pi": {
+      "files": 1457,
+      "non_transcript_records": 0,
+      "total_bytes": 2664057208,
+      "parsed_sessions": 1457,
+      "parse_failures": 0,
+      "empty_sessions": 0,
+      "event_count": 545559,
+      "tool_call_count": 202176,
+      "tool_result_count": 202109,
+      "unmatched_tool_calls": 70,
+      "unmatched_tool_results": 3,
+      "sessions_with_repo_identity": 0,
+      "sessions_with_start_revision": 0,
+      "sessions_with_branching": 0,
+      "sessions_with_sidechains": 0,
+      "redaction_hits": 23797
+    },
+    "omp": {
+      "files": 42,
+      "non_transcript_records": 0,
+      "total_bytes": 174050998,
+      "parsed_sessions": 42,
+      "parse_failures": 0,
+      "empty_sessions": 0,
+      "event_count": 39481,
+      "tool_call_count": 13320,
+      "tool_result_count": 13319,
+      "unmatched_tool_calls": 1,
+      "unmatched_tool_results": 0,
+      "sessions_with_repo_identity": 0,
+      "sessions_with_start_revision": 0,
+      "sessions_with_branching": 0,
+      "sessions_with_sidechains": 0,
+      "redaction_hits": 1152
+    }
+  },
+  "extra_adapters_needed": {
+    "opencode": {
+      "format": "sqlite",
+      "status": "discovered; not one of the four mandatory parsers; requires a SQLite adapter before counting as supported"
+    }
+  },
+  "schema_facts": {
+    "claude": "records {type:user|assistant|system|attachment|mode|ai-title|...}; tool_use blocks in assistant.message.content; tool_result blocks in user.message.content keyed by tool_use_id; parentUuid uuid chains (repeated parent = fork); isSidechain marks subagent threads; cwd/gitBranch per record",
+    "codex": "lines {timestamp,type,payload}; session_meta payload has id/cwd/git{branch,commit_hash,repository_url}/parent_thread_id|forked_from_id; function_call{call_id,name,arguments} <-> function_call_output{call_id,output}; custom_tool_call/custom_tool_call_output share the call_id scheme; message/user_message/agent_message/reasoning text records",
+    "pi": "entries {type,id,parentId,timestamp}; session entry has cwd; message entries with message.role user|assistant|toolResult; assistant content blocks {text|thinking|toolCall{id,name,arguments}}; toolResult messages carry toolCallId/toolName/isError; parentId chains mark forks; custom entries (tool_execution_start, goal-state, session_exit, ...)",
+    "omp": "same entry schema as pi plus custom_message entries and credential_pin/compaction/title_change; custom types include tool_execution_start, goal-state, subagents:record, session_exit"
+  },
+  "privacy": {
+    "raw_payloads_retained": false,
+    "paths_published": false,
+    "public_fields": "counts/bytes/hashes/schema facts only",
+    "redaction_claim": "credential-pattern redaction only; not complete anonymization"
+  },
+  "repo_head_at_discovery": "ref: refs/heads/main",
+  "config_sha256": "e1b8d437fddc3ee779c82678f2f06f18da5f74d9712d7f4442067aa36dec7374",
+  "golden": {
+    "bank_status": "ready",
+    "eligible_count": 102,
+    "ineligible_count": 2425,
+    "reserved_count": 235,
+    "reserved_eligible_count": 102,
+    "non_reserved_eligible_count": 0,
+    "missing_field_counts": {
+      "repo_identifier": 2005,
+      "starting_revision": 1901,
+      "test_oracle": 2304
+    },
+    "bank_bounds": {
+      "min_tasks": 50,
+      "max_tasks": 200
+    },
+    "blocker": null,
+    "oracle_registrations": 223,
+    "evidence_fills": {
+      "repo_identifier": 63,
+      "starting_revision": 151
+    },
+    "frozen_count": 102,
+    "frozen_registry_count": 102,
+    "supported_oracle_provenance": 36,
+    "provisional_oracle_provenance": 66,
+    "readiness": "NOT validated-for-task-success",
+    "provenance_audit_ref": "manifests/datasets/golden-freeze-summary.json#provenance_audit"
+  },
+  "partition": {
+    "task_groups_assigned": 2527,
+    "counts": {
+      "pruning": 924,
+      "quant": 486,
+      "recovery": 507,
+      "validation": 258,
+      "golden": 235,
+      "torture": 117
+    },
+    "quarantined_identity_failures": 58,
+    "frozen_respected": 2524,
+    "reserved_golden_groups": 235,
+    "reserved_golden_ready": 36,
+    "reserved_golden_not_ready": 199
+  }
+}

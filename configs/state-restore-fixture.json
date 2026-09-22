@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "description": "NVMe/SWA whole-context continuation fixture. Consumed by scripts/state_restore_harness.py against an externally managed llama-server (--base-url); the harness never spawns a server.",
+  "fixture": {
+    "repo": "ggml-org/tinygemma3-GGUF",
+    "revision": "c287502cd9e278dac8eed805c112cce5d0081e0b",
+    "file": "tinygemma3-Q8_0.gguf",
+    "size_bytes": 47227552,
+    "sha256": "7566ae7219c93ea2ecc692a931ee122d30c55261d0e2c3347acb8b939d2e9abd",
+    "resolve_url": "https://huggingface.co/ggml-org/tinygemma3-GGUF/resolve/c287502cd9e278dac8eed805c112cce5d0081e0b/tinygemma3-Q8_0.gguf",
+    "cache_path": ".cache/state-tests/tinygemma3-Q8_0.gguf",
+    "license": {
+      "declared": "WTFPL",
+      "note": "License string declared by the upstream repository; recorded as declared metadata only, not a legal approval."
+    }
+  },
+  "snapshot": {
+    "dir": ".cache/state-tests/snapshots",
+    "filename": "nvme-continuation-{variant}.bin"
+  },
+  "slot_id": 0,
+  "corpus": {
+    "line": "the amber lantern drifts over the quiet harbor while numbered stones mark the steady tide"
+  },
+  "determinism": {
+    "temperature": 0.0,
+    "seed": 42,
+    "threads": 1,
+    "cache_prompt": true,
+    "return_tokens": true,
+    "n_probs": 5,
+    "logprob_abs_tol": 0.001
+  },
+  "variants": {
+    "small": {
+      "n_ctx": 8192,
+      "history_tokens": 4096,
+      "suffix_tokens": 256,
+      "n_predict": 8,
+      "batch_size": 512,
+      "ubatch_size": 512,
+      "replay_boundary_tokens": 1,
+      "request_timeout_s": 600,
+      "cold_probe": true,
+      "cold_probe_n_predict": 1,
+      "slow": false,
+      "launch_args": [
+        "--model", "{model_path}",
+        "--offline",
+        "--ctx-size", "8192",
+        "--parallel", "1",
+        "--batch-size", "512",
+        "--ubatch-size", "512",
+        "--threads", "1",
+        "--n-gpu-layers", "0",
+        "--seed", "42",
+        "--temp", "0",
+        "--n-predict", "8",
+        "--metrics",
+        "--slots",
+        "--slot-save-path", "{snapshot_dir}",
+        "--cache-ram", "0",
+        "--no-cache-idle-slots",
+        "--host", "127.0.0.1",
+        "--port", "{port}"
+      ]
+    },
+    "slow": {
+      "n_ctx": 131072,
+      "history_tokens": 102400,
+      "suffix_tokens": 4096,
+      "n_predict": 8,
+      "batch_size": 1024,
+      "ubatch_size": 1024,
+      "replay_boundary_tokens": 1,
+      "request_timeout_s": 3600,
+      "cold_probe": true,
+      "cold_probe_n_predict": 1,
+      "slow": true,
+      "launch_args": [
+        "--model", "{model_path}",
+        "--offline",
+        "--ctx-size", "131072",
+        "--parallel", "1",
+        "--batch-size", "1024",
+        "--ubatch-size", "1024",
+        "--threads", "1",
+        "--n-gpu-layers", "0",
+        "--seed", "42",
+        "--temp", "0",
+        "--n-predict", "8",
+        "--metrics",
+        "--slots",
+        "--slot-save-path", "{snapshot_dir}",
+        "--cache-ram", "0",
+        "--no-cache-idle-slots",
+        "--host", "127.0.0.1",
+        "--port", "{port}"
+      ]
+    }
+  }
+}

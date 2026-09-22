@@ -1,0 +1,268 @@
+# strix-mimo-native-mxfp4.patch
+#
+# MiMo-V2 native-checkpoint conversion fix for the pinned strix converter
+# (upstreams/strix-llama.cpp; conversion/mimo.py is byte-identical at the
+# upstreams/llama.cpp pin). Apply with:
+#
+#   git -C upstreams/strix-llama.cpp apply "$PWD/patches/strix-mimo-native-mxfp4.patch"
+#
+# Two defects in conversion/mimo.py:
+#
+#   1) routed-expert scale siblings (`...weight_scale`) counted towards the
+#      `n_experts * 3` merge threshold, so the merge fired while payloads were
+#      still missing (KeyError: model.layers.N.mlp.experts.E.gate_proj.weight
+#      near line 211). Payloads now pair with their scale siblings and only
+#      complete pairs count.
+#
+#   2) packed native MXFP4 experts (compressed-tensors "mxfp4-pack-quantized":
+#      uint8 code payload + uint8 E8M0 scale sibling) were streamed as if they
+#      were dense weights. They are now repacked losslessly through the
+#      existing base.repack_mxfp4_blocks into ggml block_mxfp4, written as
+#      GGML_TYPE_MXFP4 expert tensors (same pattern as
+#      conversion/deepseek.py::_write_mxfp4_expert_tensor), and the output
+#      file type is MOSTLY_MXFP4_MOE.
+#
+# Second-generation candidate experts (quantization_config.store_dtype ==
+# "second_gen_affine", e.g. q3_affine_g128 codes + I8 scale/zero pairs) have
+# no GGML decoder: they are refused with an explicit "unsupported expert
+# format: ... second_gen_affine" diagnostic instead of being mislabelled
+# native MXFP4 or requantized. Dense (BF16/F16/F32) experts and the source
+# TP-aware FP8 qkv conversion path are unchanged.
+#
+# Regression: tests/test_mimo_native_mxfp4.py (applies this patch to a
+# throwaway tree copy; the pinned checkout stays immutable).
+diff --git a/conversion/mimo.py b/conversion/mimo.py
+index 15dbeb7..1ef2a32 100644
+--- a/conversion/mimo.py
++++ b/conversion/mimo.py
+@@ -5,12 +5,13 @@ import re
+ 
+ from typing import Any, Callable, Iterable, TYPE_CHECKING
+ 
++import numpy as np
+ import torch
+ 
+ if TYPE_CHECKING:
+     from torch import Tensor
+ 
+-from .base import MmprojModel, ModelBase, TextModel, gguf
++from .base import LazyTorchTensor, MmprojModel, ModelBase, TextModel, gguf, logger
+ 
+ 
+ @ModelBase.register("MiMoV2FlashForCausalLM", "MiMoV2ForCausalLM")
+@@ -28,6 +29,26 @@ class MimoV2Model(TextModel):
+         self.block_count = self.hparams["num_hidden_layers"] + self._n_nextn
+         self.tensor_map = gguf.get_tensor_name_map(self.model_arch, self.block_count)
+ 
++        self._experts = None
++        self._expert_formats = None
++        self._mxfp4_experts_written = False
++
++        # Native checkpoints store routed experts as compressed-tensors
++        # "mxfp4-pack-quantized" (quantization_config.store_dtype == "mxfp4").
++        # Second-generation candidate builds record "second_gen_affine" instead:
++        # its group-affine expert codes have no GGML decoder, so refuse them
++        # explicitly rather than mislabel them native MXFP4 or requantize
++        # source values.
++        quant_config = self.hparams.get("quantization_config")
++        store_dtype = quant_config.get("store_dtype") if isinstance(quant_config, dict) else None
++        if store_dtype is not None and store_dtype != "mxfp4":
++            raise ValueError(
++                f"unsupported expert format: quantization_config.store_dtype={store_dtype!r} "
++                "(expected 'mxfp4'): second_gen_affine/unknown expert codes have no GGML "
++                "decoder - refusing to mislabel them native MXFP4 or requantize source "
++                "values; use the exact layer-streamed evaluation path until a dedicated "
++                "decoder/kernel exists")
++
+     @staticmethod
+     def _tp_aware_qkv_dequant(weight: Tensor, scale_inv: Tensor,
+                               n_q: int, n_kv: int, hd: int, vhd: int,
+@@ -167,7 +188,13 @@ class MimoV2Model(TextModel):
+ 
+         self.gguf_writer.add_nextn_predict_layers(self._n_nextn)
+ 
++    _expert_tensor_re = re.compile(
++        r"^model\.layers\.(\d+)\.mlp\.experts\.(\d+)\.(gate_proj|up_proj|down_proj)\.(weight|weight_scale)$")
++
+     _experts: list[dict[str, Tensor]] | None = None
++    # (expert id, proj) -> "mxfp4" | "dense" once a payload/scale pair classifies
++    _expert_formats: list[dict[tuple[int, str], str]] | None = None
++    _mxfp4_experts_written = False
+ 
+     @classmethod
+     def filter_tensors(cls, item: tuple[str, Callable[[], Tensor]]) -> tuple[str, Callable[[], Tensor]] | None:
+@@ -179,6 +206,7 @@ class MimoV2Model(TextModel):
+         return super().filter_tensors((name, gen))
+ 
+     def modify_tensors(self, data_torch, name, bid):
++        source_name = name
+         # Remap MTP/NextN tensors to additional layer slots so the standard tensor map handles them.
+         # HF: model.mtp.layers.{i}.foo  ->  model.layers.{n_layer_text + i}.foo
+         m = re.match(r"^model\.mtp\.layers\.(\d+)\.(.*)$", name)
+@@ -191,34 +219,130 @@ class MimoV2Model(TextModel):
+             name = f"model.layers.{new_bid}.{rest}"
+             bid = new_bid
+ 
+-        # process the experts separately
++        # process the experts separately: each payload pairs with its quant
++        # scale sibling (packed native mxfp4) before the layer can merge
+         if name.find("mlp.experts") != -1:
+             n_experts = self.hparams["n_routed_experts"]
+             assert bid is not None
+ 
++            m = self._expert_tensor_re.match(name)
++            if m is None:
++                raise ValueError(f"Unexpected routed-expert tensor: {name!r}")
++
+             if self._experts is None:
+                 self._experts = [{} for _ in range(self.block_count)]
++                self._expert_formats = [{} for _ in range(self.block_count)]
++
++            # keep the raw tensor: the write loop re-casts non-f16/f32 dtypes
++            # to float32 before modify_tensors, and packed MXFP4 payloads must
++            # reach repack_mxfp4_blocks as exact uint8 bytes
++            self._experts[bid][name] = self.model_tensors[source_name]()
++
++            xid, proj = int(m.group(2)), m.group(3)
++            fmt = self._classify_expert_pair(bid, proj, xid)
++            if fmt is not None:
++                self._expert_formats[bid][(xid, proj)] = fmt
++
++            # merge once every payload has a classified pair (scale siblings
++            # do not count towards the n_experts * 3 payloads)
++            if len(self._expert_formats[bid]) >= n_experts * 3:
++                yield from self._merge_experts(bid, n_experts)
++            return
++        yield from super().modify_tensors(data_torch, name, bid)
+ 
+-            self._experts[bid][name] = data_torch
+-
+-            if len(self._experts[bid]) >= n_experts * 3:
+-                # merge the experts into a single 3d tensor
+-                for w_name in ["gate_proj", "up_proj", "down_proj"]:
+-                    datas: list[Tensor] = []
+-
+-                    for xid in range(n_experts):
+-                        ename_to_retrieve = f"model.layers.{bid}.mlp.experts.{xid}.{w_name}.weight"
+-                        datas.append(self._experts[bid][ename_to_retrieve])
+-                        del self._experts[bid][ename_to_retrieve]
++    def _classify_expert_pair(self, bid: int, proj: str, xid: int) -> str | None:
++        """Pair an expert payload with its scale sibling and classify the layout.
++
++        Returns "mxfp4" (packed uint8 payload + E8M0 scale sibling), "dense"
++        (float payload, no sibling) or None while the pair is incomplete.
++        Unknown layouts - notably second_gen_affine group-affine codes - are
++        refused explicitly: ggml has no decoder for them, and mislabeling them
++        native MXFP4 or requantizing source values are both forbidden.
++        """
++        w_name = f"model.layers.{bid}.mlp.experts.{xid}.{proj}.weight"
++        s_name = w_name + "_scale"
++        bucket = self._experts[bid]
++        if w_name not in bucket:
++            return None
++        weight = bucket[w_name]
++        e8m0 = getattr(torch, "float8_e8m0fnu", None)
++
++        if s_name not in bucket:
++            if weight.dtype == torch.uint8:
++                return None  # packed payload: wait for its scale sibling
++            if weight.dtype in (torch.float16, torch.bfloat16, torch.float32):
++                return "dense"
++            raise ValueError(self._unsupported_expert_format(
++                w_name, f"expert payload dtype {weight.dtype}"))
++
++        scale = bucket[s_name]
++        if weight.dtype == torch.uint8 and scale.ndim == 2 and (
++                scale.dtype == torch.uint8 or scale.dtype == e8m0):
++            return "mxfp4"
++        if weight.dtype == torch.uint8 and scale.ndim == 3:
++            raise ValueError(self._unsupported_expert_format(
++                s_name, "second_gen_affine group-affine scale/zero pairs"))
++        raise ValueError(self._unsupported_expert_format(
++            s_name, f"expert scale layout dtype={scale.dtype} shape={tuple(scale.shape)}"))
+ 
+-                    data_torch = torch.stack(datas, dim=0)
+-                    merged_name = f"model.layers.{bid}.mlp.experts.{w_name}.weight"
++    @staticmethod
++    def _unsupported_expert_format(name: str, what: str) -> str:
++        return (
++            f"unsupported expert format: {name}: {what} - second_gen_affine/unknown "
++            "expert codes have no GGML decoder; refusing to mislabel them native MXFP4 "
++            "or requantize source values; use the exact layer-streamed evaluation path "
++            "until a dedicated decoder/kernel exists")
++
++    def _merge_experts(self, bid: int, n_experts: int):
++        # merge each projection of one layer into a single 3d tensor (dense) or
++        # one raw ggml MXFP4 tensor (packed native mxfp4, lossless repack)
++        formats = self._expert_formats[bid]
++        for w_name in ["gate_proj", "up_proj", "down_proj"]:
++            fmts = {formats[(xid, w_name)] for xid in range(n_experts)}
++            if len(fmts) != 1:
++                raise ValueError(self._unsupported_expert_format(
++                    f"model.layers.{bid}.mlp.experts.{w_name}.weight",
++                    f"mixed pair formats {sorted(fmts)} within one projection"))
++
++            names = [f"model.layers.{bid}.mlp.experts.{xid}.{w_name}.weight"
++                     for xid in range(n_experts)]
++            if fmts == {"mxfp4"}:
++                self._write_mxfp4_expert_tensor(bid, w_name, names)
++                continue
+ 
+-                    yield from super().modify_tensors(data_torch, merged_name, bid)
+-                return
+-            else:
+-                return
+-        yield from super().modify_tensors(data_torch, name, bid)
++            datas: list[Tensor] = []
++            for xid in range(n_experts):
++                ename_to_retrieve = f"model.layers.{bid}.mlp.experts.{xid}.{w_name}.weight"
++                datas.append(self._experts[bid].pop(ename_to_retrieve))
++
++            data_torch = torch.stack(datas, dim=0)
++            if data_torch.dtype not in (torch.float16, torch.float32):
++                data_torch = data_torch.to(torch.float32)
++            merged_name = f"model.layers.{bid}.mlp.experts.{w_name}.weight"
++
++            yield from super().modify_tensors(data_torch, merged_name, bid)
++        self._expert_formats[bid].clear()
++
++    def _write_mxfp4_expert_tensor(self, bid: int, proj: str, names: list[str]) -> None:
++        # lossless repack of compressed-tensors "mxfp4-pack-quantized" expert
++        # weights into ggml block_mxfp4 (same machinery as DeepseekV4Model)
++        data: np.ndarray | None = None
++        for xid in range(len(names)):
++            w_name = names[xid]
++            s_name = w_name + "_scale"
++            weight = LazyTorchTensor.to_eager(self._experts[bid].pop(w_name))
++            scale = LazyTorchTensor.to_eager(self._experts[bid].pop(s_name))
++            packed = self.repack_mxfp4_blocks(weight, scale)
++            if data is None:
++                data = np.empty((len(names), *packed.shape), dtype=packed.dtype)
++            data[xid] = packed
++
++        assert data is not None
++        new_name = self.map_tensor_name(f"model.layers.{bid}.mlp.experts.{proj}.weight")
++        shape = gguf.quant_shape_from_byte_shape(data.shape, gguf.GGMLQuantizationType.MXFP4)
++        logger.info(f"{new_name}: repacked routed experts to MXFP4, shape = {{{', '.join(str(n) for n in reversed(shape))}}}")
++        self.gguf_writer.add_tensor(new_name, data, raw_dtype=gguf.GGMLQuantizationType.MXFP4)
++        self._mxfp4_experts_written = True
+ 
+     def prepare_tensors(self):
+         super().prepare_tensors()
+@@ -227,7 +351,15 @@ class MimoV2Model(TextModel):
+             # flatten `list[dict[str, Tensor]]` into `list[str]`
+             experts = [k for d in self._experts for k in d.keys()]
+             if len(experts) > 0:
+-                raise ValueError(f"Unprocessed experts: {experts}")
++                raise ValueError(
++                    f"Unprocessed experts: {experts} "
++                    "(packed MXFP4 payloads need their weight_scale siblings)")
++
++        if self._mxfp4_experts_written:
++            # routed experts were written as lossless ggml MXFP4 blocks;
++            # label the output file accordingly (as DeepseekV4Model does)
++            self._is_mxfp4 = True
++            self.ftype = gguf.LlamaFileType.MOSTLY_MXFP4_MOE
+ 
+ 
+ @ModelBase.register("MiMoV2ForCausalLM")

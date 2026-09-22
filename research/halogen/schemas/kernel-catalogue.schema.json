@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "kernel-catalogue.schema.json",
+  "title": "Halogen Phase-1 kernel catalogue",
+  "description": "Clean-room observation catalogue for gfx1151 static analysis. Each kernel row maps name/hash -> ISA size -> VGPR -> SGPR -> LDS -> wave size -> likely operation -> confidence -> evidence; every unrecoverable field is null with an explanatory entry in null_reasons. Observations only: no Halogen source code or reconstructed kernels, hashes and short disassembly evidence only.",
+  "type": "object",
+  "required": [
+    "catalogue_version",
+    "generated_by",
+    "generated_at",
+    "toolchain",
+    "inputs",
+    "kernels"
+  ],
+  "properties": {
+    "catalogue_version": { "const": 1 },
+    "generated_by": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "minLength": 1 },
+    "toolchain": { "$ref": "#/$defs/toolchain" },
+    "disassembly_commands": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/input" }
+    },
+    "kernels": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/kernel" }
+    }
+  },
+  "$defs": {
+    "toolchain": {
+      "type": "object",
+      "required": ["generated_at", "llvm_objdump", "python", "platform", "tool"],
+      "properties": {
+        "generated_at": { "type": "string" },
+        "llvm_objdump": {
+          "type": "object",
+          "required": ["path", "version", "error"],
+          "properties": {
+            "path": { "type": ["string", "null"] },
+            "version": { "type": ["string", "null"] },
+            "error": { "type": ["string", "null"] }
+          }
+        },
+        "python": { "type": "string" },
+        "platform": { "type": "string" },
+        "tool": {
+          "type": "object",
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "type": "string" },
+            "version": { "type": "string" }
+          }
+        },
+        "disassembly_commands": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "input": {
+      "type": "object",
+      "required": ["path", "sha256", "size", "kind", "bundles", "code_objects", "errors"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "size": { "type": ["integer", "null"], "minimum": 0 },
+        "kind": {
+          "type": "string",
+          "enum": ["amdgpu-elf", "host-elf", "raw", "elf", "unreadable"]
+        },
+        "bundles": { "type": "array", "items": { "type": "object" } },
+        "code_objects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["origin", "offset", "parse_error", "kernel_count"],
+            "properties": {
+              "origin": { "type": "string" },
+              "offset": { "type": ["integer", "null"] },
+              "parse_error": { "type": ["string", "null"] },
+              "kernel_count": { "type": "integer", "minimum": 0 },
+              "target": { "type": ["object", "null"] },
+              "metadata": { "type": "array", "items": { "type": "object" } }
+            }
+          }
+        },
+        "errors": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["source", "offset", "mnemonic", "detail"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "symbol",
+            "metadata",
+            "metadata-field",
+            "kernel-descriptor",
+            "elf-header",
+            "disasm"
+          ]
+        },
+        "offset": { "type": ["integer", "null"], "minimum": 0 },
+        "mnemonic": { "type": ["string", "null"] },
+        "detail": { "type": "string" }
+      }
+    },
+    "kernel": {
+      "type": "object",
+      "required": [
+        "name",
+        "input",
+        "code_object_origin",
+        "hash",
+        "isa_size",
+        "vgpr",
+        "sgpr",
+        "lds",
+        "wave_size",
+        "kernarg_segment_size",
+        "private_segment_fixed_size",
+        "max_flat_workgroup_size",
+        "kd_preload",
+        "likely_operation",
+        "confidence",
+        "disassembly",
+        "classification_rules",
+        "field_sources",
+        "metadata",
+        "evidence",
+        "null_reasons"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "input": { "type": "string", "minLength": 1 },
+        "code_object_origin": { "type": "string" },
+        "hash": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "isa_size": { "type": ["integer", "null"], "minimum": 1 },
+        "vgpr": { "type": ["integer", "null"], "minimum": 0 },
+        "sgpr": { "type": ["integer", "null"], "minimum": 0 },
+        "lds": { "type": ["integer", "null"], "minimum": 0 },
+        "wave_size": { "type": ["integer", "null"], "enum": [32, 64, null] },
+        "kernarg_segment_size": { "type": ["integer", "null"], "minimum": 0 },
+        "private_segment_fixed_size": { "type": ["integer", "null"], "minimum": 0 },
+        "max_flat_workgroup_size": { "type": ["integer", "null"], "minimum": 0 },
+        "kd_preload": {
+          "type": ["object", "null"],
+          "required": ["length", "offset"],
+          "properties": {
+            "length": { "type": "integer", "minimum": 0, "maximum": 127 },
+            "offset": { "type": "integer", "minimum": 0, "maximum": 511 }
+          }
+        },
+        "likely_operation": {
+          "type": ["string", "null"],
+          "enum": [
+            "quantized_gemm",
+            "fused_dequant_gemm",
+            "moe_routing",
+            "expert_gather_scatter",
+            "reduction",
+            "activation",
+            "attention",
+            "kv_operation",
+            "tensor_repacking",
+            "speculative_verification",
+            "unclassified",
+            null
+          ]
+        },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "disassembly": {
+          "type": "object",
+          "required": ["available", "error", "mcpu", "symbol", "insn_count"],
+          "properties": {
+            "available": { "type": "boolean" },
+            "error": { "type": ["string", "null"] },
+            "mcpu": { "type": ["string", "null"] },
+            "symbol": { "type": "string" },
+            "insn_count": { "type": ["integer", "null"], "minimum": 0 }
+          }
+        },
+        "classification_rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["rule", "category", "score"],
+            "properties": {
+              "rule": { "type": "string" },
+              "category": { "type": "string" },
+              "score": { "type": "number" }
+            }
+          }
+        },
+        "field_sources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "enum": ["metadata", "kd", "symbol", "none"]
+          }
+        },
+        "metadata": {
+          "type": ["object", "null"],
+          "properties": {
+            "schema": { "type": ["string", "null"] },
+            "note_section": { "type": ["string", "null"] },
+            "note_offset": { "type": ["integer", "null"] },
+            "amdhsa_version": {},
+            "amdhsa_target": { "type": ["string", "null"] },
+            "entry_index": { "type": "integer" },
+            "error": { "type": "string" }
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "null_reasons": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

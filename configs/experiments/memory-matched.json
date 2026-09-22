@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "experiment_id": "memory-matched-precision-reference",
+  "title": "Memory-matched expert-count and precision comparison: tacodevs REAP25 reference (A) vs REAP160 (B) / HOPE160 (C) / HOPE176 (D)",
+  "status": "design; no hardware measurements yet",
+  "source_issues": {
+    "baseline_archive_importer": 50,
+    "selection_disagreement_analysis": 51,
+    "memory_matched_experiment_design": 52
+  },
+  "unit_conventions": {
+    "decimal_gb_bytes": 1000000000,
+    "gib_bytes": 1073741824,
+    "byte_rule": "Every budget comparison is decided on exact integer bytes. Decimal GB uses 10^9 bytes; GiB uses 2^30 bytes. The two units are never mixed or silently converted.",
+    "unit_warnings": [
+      "EXACT control cap: 100431428728 bytes = 100.431428728 decimal GB = 93.53405677527189 GiB (~93.53 GiB), derived from the archived evidence/tree.json (22 top-level text shards, revision 95d80053eb22112f2acc4244330eb67b4f534c94). All fit comparisons use this exact figure.",
+      "The published model-card '100.4 GB' is a ROUNDED LABEL only (= 100400000000 bytes = 93.504786 GiB when read as decimal GB). Never call the rounded card cap the exact baseline; it differs from the exact archived tree sum by 31428728 bytes.",
+      "It is NOT 100.4 GiB (which would be 107803679130 bytes = 107.803679 decimal GB).",
+      "The original production target 103 GiB = 110595407872 bytes = 110.595408 decimal GB is a DISTINCT cap from A's exact 100431428728-byte archived tree sum.",
+      "The existing project weight target 100-105 GiB = 107374182400-112742891520 bytes = 107.374182-112.742892 decimal GB, so A (93.53405677527189 GiB) sits BELOW the project target range.",
+      "Do not call A and B/C/D memory matched in prose units; 'memory matched' is decided only by the exact-byte fit rule below."
+    ]
+  },
+  "byte_caps": [
+    {
+      "cap_id": "tacodevs-exact-tree-sum",
+      "role": "primary equal-budget control: exact archived HF tree text-shard sum for A (22 top-level model-*-of-00022.safetensors shards, manifests/baselines/tacodevs-reap25/evidence/tree.json, revision 95d80053eb22112f2acc4244330eb67b4f534c94); distinct from the rounded card label",
+      "weight_bytes": 100431428728,
+      "weight_gb_decimal": 100.431428728,
+      "weight_gib_binary": 93.53405677527189
+    },
+    {
+      "cap_id": "tacodevs-card-label-100.4gb",
+      "role": "informational only: the published model-card 100.4 GB label, rounded; NOT an exact budget cap and NOT the exact baseline size",
+      "weight_bytes": 100400000000,
+      "weight_gb_decimal": 100.4,
+      "weight_gib_binary": 93.504786
+    },
+    {
+      "cap_id": "user-approx-100gb",
+      "role": "user's approximate 100 GB control (decimal GB reading)",
+      "weight_bytes": 100000000000,
+      "weight_gb_decimal": 100.0,
+      "weight_gib_binary": 93.132257
+    },
+    {
+      "cap_id": "project-lower-100gib",
+      "role": "existing project weight-target lower bound (100 GiB)",
+      "weight_bytes": 107374182400,
+      "weight_gb_decimal": 107.374182,
+      "weight_gib_binary": 100.0
+    },
+    {
+      "cap_id": "production-103gib",
+      "role": "original production target (103 GiB)",
+      "weight_bytes": 110595407872,
+      "weight_gb_decimal": 110.595408,
+      "weight_gib_binary": 103.0
+    }
+  ],
+  "fit_rule": {
+    "statement": "An arm fits a cap if and only if its measured text_weight_bytes <= cap.weight_bytes. Auxiliary weights, KV cache and runtime headroom are recorded separately and NEVER netted into text weight bytes.",
+    "text_weight_bytes_source": "exact byte inventory from safetensors headers/index; published GB values are recorded as published, not as measured bytes",
+    "runtime_memory_measured": false
+  },
+  "feasibility_math_gate": {
+    "source": "manifests/models/mimo-v2.6-flash-rl/memory-report.json (native/prune_candidates/precision_costs summary) derived from the safetensors-header inventory manifests/models/mimo-v2.6-flash-rl/inventory.json; XiaomiMiMo/MiMo-V2.6-Flash-RL revision 5711b268169967567844e1e560e8a3966da959b1",
+    "per_retained_index": {
+      "logical_expert_parameters_across_47_moe_layers": 1182793728,
+      "format_bpw_exact": 4.25,
+      "stored_bytes": 628359168,
+      "rate_note": "official native packing rate; any ROCmFP4/FAST format at >= 4.25 bpw costs at least this much per retained index"
+    },
+    "experts_only_160_bytes": 100537466880,
+    "protected_non_expert_bytes": 8894573440,
+    "full_160_native_bytes": 109432040320,
+    "verdict_at_A_exact_cap": "infeasible_with_only_ROCmFP4_FAST_or_higher",
+    "verdict_reason": "160 retained expert indices at 4.25 bpw = 100537466880 B EXPERTS ONLY, over A's entire-text cap 100431428728 B by 106038152 B before any protected non-expert byte; pure ROCmFP4/FAST-160 plus protected non-experts cannot fit the A control cap",
+    "A_control": "A remains the mandatory static control; candidates that do not fit are reported as not fitting and unequal weight budgets are never silently called memory matched",
+    "production_103gib": "B/C at 160 experts are feasible at the 103 GiB production cap (110595407872 B) with a dynamic precision mix to be planned: native 4.25 experts plus protected non-experts = 109432040320 B, headroom 1163367552 B",
+    "fair_common_cap_comparison_requires": "either a cap-matched 192-expert reconstruction from the OFFICIAL Xiaomi source (production lineage), or an explicitly labeled exploration of formats below 4.25 bpw and/or a 144-expert arm; the choice is always stated explicitly",
+    "no_production_mlx_requantization": true,
+    "unchanged": "the user's primary 160-expert goal and every original byte budget remain unchanged; this entry records the arithmetic gate only",
+    "runtime_memory_measured": false
+  },
+  "arms": [
+    {
+      "arm_id": "A",
+      "name": "tacodevs-reap25-mixed3bit-gptq-mtp",
+      "kind": "published external baseline",
+      "baseline_id": "tacodevs-reap25-mixed3bit-gptq-mtp",
+      "normalized_reference": "manifests/baselines/tacodevs-reap25/normalized.json",
+      "experts_retained_per_layer": 192,
+      "experts_original_per_layer": 256,
+      "expert_bpw": {"value": 3.29, "kind": "published", "includes_overhead": null},
+      "published_text_weight_gb_decimal": 100.4,
+      "published_text_weight_label_note": "rounded model-card label only; exact control is tree_sum_text_weight_bytes",
+      "tree_sum_text_weight_bytes": 100431428728,
+      "tree_sum_source": "manifests/baselines/tacodevs-reap25/evidence/tree.json: 22 top-level model-*-of-00022.safetensors shards, revision 95d80053eb22112f2acc4244330eb67b4f534c94; rounded card label differs by 31428728 bytes",
+      "published_auxiliary_weight_gb_decimal": 7.3,
+      "role": "comparison_only",
+      "production_source_allowed": false,
+      "source": "https://huggingface.co/tacodevs/MiMo-V2.6-Flash-RL-MLX-REAP25-mixed3bit-GPTQ-MTP",
+      "evaluation_source": "published model-card metrics only; independently_reproduced=false"
+    },
+    {
+      "arm_id": "B",
+      "name": "MiMo-V2.6-Code-REAP160",
+      "kind": "our structural candidate",
+      "experts_retained_per_layer": 160,
+      "experts_original_per_layer": 256,
+      "expert_bpw": {"value": null, "kind": "planned", "range": [4.0, 5.0]},
+      "selection_source": "REAP selection from shared observation run (issues 31/33)",
+      "memory_matched_against_caps": ["tacodevs-exact-tree-sum", "user-approx-100gb", "project-lower-100gib", "production-103gib"],
+      "status": "planned"
+    },
+    {
+      "arm_id": "C",
+      "name": "MiMo-V2.6-Code-HOPE160",
+      "kind": "our structural candidate",
+      "experts_retained_per_layer": 160,
+      "experts_original_per_layer": 256,
+      "expert_bpw": {"value": null, "kind": "planned", "range": [4.0, 5.0]},
+      "selection_source": "paper-faithful HOPE selection from shared observation run (issues 31/33)",
+      "memory_matched_against_caps": ["tacodevs-exact-tree-sum", "user-approx-100gb", "project-lower-100gib", "production-103gib"],
+      "status": "planned"
+    },
+    {
+      "arm_id": "D",
+      "name": "MiMo-V2.6-Code-HOPE176",
+      "kind": "our structural candidate",
+      "experts_retained_per_layer": 176,
+      "experts_original_per_layer": 256,
+      "expert_bpw": {"value": null, "kind": "planned", "range": [4.0, 5.0]},
+      "selection_source": "paper-faithful HOPE selection from shared observation run (issues 31/33)",
+      "outside_equal_budget": true,
+      "role": "quality-first frontier point; only included if it safely fits the production budget, never blended into equal-budget claims",
+      "status": "planned"
+    }
+  ],
+  "headroom": {
+    "recorded_separately": true,
+    "fields_per_arm": {
+      "auxiliary_weight_bytes": null,
+      "kv_cache_bytes": null,
+      "runtime_headroom_bytes": null,
+      "runtime_memory_measured": false
+    },
+    "arm_A_published_auxiliary": {
+      "weight_bytes": 7300000000,
+      "weight_gb_decimal": 7.3,
+      "weight_gib_binary": 6.798655,
+      "note": "published auxiliary-weight figure from the A model card; decimal GB reading, kept OUT of text-weight fit"
+    }
+  },
+  "evaluation_protocol": {
+    "distribution_controls": [
+      "heldout perplexity delta",
+      "KL divergence",
+      "top1 / top-token agreement",
+      "on-policy API response agreement distributions"
+    ],
+    "distribution_controls_are": "controls only; token agreement/KL are NOT capability or task-success evidence",
+    "decision_metric": "held-out long-horizon golden repository task success on the frozen golden set",
+    "golden_policy": "golden tasks are frozen before calibration and NEVER enter calibration, imatrix, QLoRA, QAT or quant search",
+    "published_metrics_note": "Published agreement figures (e.g. A: ALL 90.4%, code 90.8%, agent 88.5%, reasoning 94.2%) are distribution metrics, NOT measured task success",
+    "task_success_measured": null,
+    "independently_reproduced": false,
+    "official_source_only_production": true,
+    "conversion_rule": "never convert already-quantized MLX checkpoints into production ROCmFP4; official Xiaomi source remains the production lineage and its native MXFP4 quantization (stored MXFP4 independently confirmed) is documented, not concealed; MXFP4 QAT training is a tacodevs card claim only"
+  },
+  "full_matrix": {
+    "description": "Full comparison matrix for final validation (issue 46), including arms A-D",
+    "arms": [
+      {"arm": "full-mimo", "availability_verified": null},
+      {"arm": "full-lowbit-q2", "availability_verified": null},
+      {"arm": "community-reap50", "availability_verified": null},
+      {"arm": "ling", "availability_verified": null},
+      {"arm": "qwen", "availability_verified": null},
+      {"arm": "tacodevs-reap25-A", "availability_verified": null},
+      {"arm": "ours-B-reap160", "availability_verified": null},
+      {"arm": "ours-C-hope160", "availability_verified": null},
+      {"arm": "ours-D-hope176", "availability_verified": null}
+    ],
+    "note": "Alternatives enter the matrix only after verified availability; missing alternatives are reported unavailable, never invented"
+  },
+  "baseline_precision_reference": {
+    "source": "manifests/baselines/tacodevs-reap25/normalized.json precision_summary and layers[].projections",
+    "published_projection_counts": {
+      "total_projections": 141,
+      "affine_3bit_g128": 93,
+      "native_mxfp4": 22,
+      "affine_2bit_g128": 18,
+      "affine_3bit_g64": 8
+    },
+    "other_text_tensors": "8-bit affine g64",
+    "published_notes": [
+      "attention_value_scale folded into v_proj",
+      "independently confirmed: the official Xiaomi release stores its experts natively as MXFP4; tacodevs card claim (not officially confirmed): experts are natively MXFP4 QAT and no BF16 expert release exists",
+      "calibration 256x2048 tokens from codealpaca/Mixture-of-Thoughts/SWE-smith/glaive/UltraChat",
+      "heldout 31x2048: PPL 9.271 -> 9.529, KL 0.8315, top1 agreement 79.5%"
+    ],
+    "interpretation_rule": "Published allocation is evidence for sensitivity prioritization only: tensors allocated higher bits (8-bit non-expert text tensors; native MXFP4 and 3-bit vs 2-bit expert projections) are the published plan's implicit sensitivity ordering. It is NOT measured sensitivity, NOT our allocation, and NOT task-success evidence."
+  },
+  "claims_and_prohibitions": [
+    "No inference functionality is claimed anywhere in this design; nothing runs until weights, runtime and hardware prerequisites exist.",
+    "Fit claims use exact bytes only; no prose-unit memory matching.",
+    "Missing measurements stay null/unavailable; they are never zero and never inferred.",
+    "Published metrics stay labeled as distribution evidence, never task success.",
+    "Golden heldout long task success is the only decisive quality metric.",
+    "Feasibility math gate honored: at >= 4.25 bpw a 160-expert arm cannot fit A's exact cap (see feasibility_math_gate); unequal weight budgets are never silently called memory matched, and A remains the mandatory static control."
+  ]
+}

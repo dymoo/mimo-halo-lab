@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "repo": "dymoo/mimo-halo-lab",
+  "parent_spec": {
+    "planid": 0,
+    "number": 59,
+    "dbid": 5538521578,
+    "url": "https://github.com/dymoo/mimo-halo-lab/issues/59",
+    "labels": [
+      "ready-for-human",
+      "area:runtime",
+      "priority:p1"
+    ]
+  },
+  "issues": [
+    {
+      "planid": 1,
+      "number": 60,
+      "dbid": 5538606358,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/60",
+      "depends_on_issues": [
+        25
+      ]
+    },
+    {
+      "planid": 2,
+      "number": 63,
+      "dbid": 5538608146,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/63",
+      "depends_on_issues": [
+        60
+      ]
+    },
+    {
+      "planid": 3,
+      "number": 65,
+      "dbid": 5538608639,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/65",
+      "depends_on_issues": [
+        63
+      ]
+    },
+    {
+      "planid": 4,
+      "number": 62,
+      "dbid": 5538607893,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/62",
+      "depends_on_issues": [
+        60
+      ]
+    },
+    {
+      "planid": 5,
+      "number": 64,
+      "dbid": 5538608394,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/64",
+      "depends_on_issues": [
+        62
+      ]
+    },
+    {
+      "planid": 6,
+      "number": 66,
+      "dbid": 5538616516,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/66",
+      "depends_on_issues": [
+        65,
+        64
+      ]
+    },
+    {
+      "planid": 7,
+      "number": 67,
+      "dbid": 5538616816,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/67",
+      "depends_on_issues": [
+        63,
+        66
+      ]
+    },
+    {
+      "planid": 8,
+      "number": 68,
+      "dbid": 5538617032,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/68",
+      "depends_on_issues": [
+        64,
+        66
+      ]
+    },
+    {
+      "planid": 9,
+      "number": 69,
+      "dbid": 5538617260,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/69",
+      "depends_on_issues": [
+        66,
+        61
+      ]
+    },
+    {
+      "planid": 10,
+      "number": 70,
+      "dbid": 5538617484,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/70",
+      "depends_on_issues": [
+        66,
+        67
+      ]
+    },
+    {
+      "planid": 11,
+      "number": 73,
+      "dbid": 5538619814,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/73",
+      "depends_on_issues": [
+        67,
+        69
+      ]
+    },
+    {
+      "planid": 12,
+      "number": 74,
+      "dbid": 5538620089,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/74",
+      "depends_on_issues": [
+        67,
+        69,
+        70,
+        73
+      ]
+    },
+    {
+      "planid": 13,
+      "number": 72,
+      "dbid": 5538619589,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/72",
+      "depends_on_issues": [
+        64,
+        66,
+        69
+      ]
+    },
+    {
+      "planid": 14,
+      "number": 71,
+      "dbid": 5538619372,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/71",
+      "depends_on_issues": [
+        62
+      ]
+    },
+    {
+      "planid": 15,
+      "number": 75,
+      "dbid": 5538620363,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/75",
+      "depends_on_issues": [
+        67,
+        74,
+        71
+      ]
+    },
+    {
+      "planid": 16,
+      "number": 61,
+      "dbid": 5538607649,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/61",
+      "depends_on_issues": [
+        60
+      ]
+    }
+  ],
+  "labels": {
+    "canonical": [
+      "needs-triage",
+      "needs-info",
+      "ready-for-agent",
+      "ready-for-human",
+      "wontfix"
+    ],
+    "category": [
+      "bug",
+      "enhancement"
+    ],
+    "area": [
+      "area:dataset",
+      "area:docs",
+      "area:eval",
+      "area:hardware",
+      "area:hope",
+      "area:quant",
+      "area:reap",
+      "area:recovery",
+      "area:runtime"
+    ],
+    "priority": [
+      "priority:p0",
+      "priority:p1",
+      "priority:p2"
+    ],
+    "auxiliary": [
+      "blocked",
+      "hardware-needed",
+      "experiment",
+      "regression"
+    ]
+  }
+}

@@ -1,0 +1,1449 @@
+{
+  "schema_version": 1,
+  "kind": "local-trace-sources",
+  "generated_at": "2026-09-22T13:01:00Z",
+  "host": {
+    "os": "darwin",
+    "home_placeholder": "~",
+    "absolute_paths_recorded": false
+  },
+  "probe": {
+    "read_only": true,
+    "shell_headline_template": "find <root> -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+    "python_detail_method": "eval/py cell: os.walk(root, followlinks=False) over each store -> counts by extension, total/min/median/max bytes, ISO mtime range; format sniff reads only the first line (cap 65536 B) or first 2048 B of smallest/median/largest non-empty samples; files >64MB are counted but never sniffed; JSON classified by parsing first record keys only",
+    "sniff_size_limit_bytes": 67108864,
+    "cross_check": "shell find|stat|awk headline re-run for every store; counts/bytes/mtime epochs matched the python aggregates for all static stores (live stores drifted slightly between passes: omp/codex activity)",
+    "first_record_key_sweep": "all session-tree .jsonl classified by first-record key shape (aggregate counts only) to separate transcripts from memory/title sidecars"
+  },
+  "privacy": {
+    "content_in_recorded_fields": false,
+    "recorded_fields": "counts, bytes, extension tallies, mtime ranges, first-record key names, format labels",
+    "paths": "~/-placeholders only",
+    "trace_stores_written_or_modified": false,
+    "raw_sniff_values_recorded": false
+  },
+  "parser_families": {
+    "claude": "src/mimo_halo/traces/claude.py::parse_claude_session (~/.claude/projects/**/*.jsonl)",
+    "codex": "src/mimo_halo/traces/codex.py::parse_codex_session (rollout-*.jsonl)",
+    "pi": "src/mimo_halo/traces/pi.py::parse_pi_session (pi-style JSONL)",
+    "omp": "src/mimo_halo/traces/pi.py::parse_omp_session (pi-style JSONL + omp entries)"
+  },
+  "sources": [
+    {
+      "id": "claude-projects",
+      "harness_family": "claude-code",
+      "path": "~/.claude/projects",
+      "exists": true,
+      "discovery_command": "find ~/.claude/projects -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 1488,
+      "total_bytes": 610774614,
+      "ext_counts": {
+        ".jsonl": 638,
+        ".json": 556,
+        ".md": 226,
+        ".txt": 52,
+        ".js": 16
+      },
+      "size_bytes": {
+        "min": 48,
+        "median": 6743,
+        "max": 111371686
+      },
+      "mtime_range_utc": [
+        "2026-01-26T15:31:32Z",
+        "2026-09-17T16:18:06Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "jsonl-smallest",
+          "bytes": 1250,
+          "format": "jsonl",
+          "first_record_keys": [
+            "agentId",
+            "key",
+            "type"
+          ]
+        },
+        {
+          "pick": "jsonl-median-by-size",
+          "bytes": 193702,
+          "format": "jsonl",
+          "first_record_keys": [
+            "agentId",
+            "cwd",
+            "entrypoint",
+            "gitBranch",
+            "isSidechain",
+            "message",
+            "parentUuid",
+            "promptId",
+            "sessionId",
+            "timestamp",
+            "type",
+            "userType",
+            "uuid",
+            "version"
+          ]
+        },
+        {
+          "pick": "jsonl-largest-sniffable",
+          "bytes": 27175593,
+          "format": "jsonl",
+          "first_record_keys": [
+            "leafUuid",
+            "sessionId",
+            "type"
+          ]
+        },
+        {
+          "pick": "overall-largest",
+          "bytes": 111371686,
+          "format": "not-sniffed",
+          "reason": "size>64MB"
+        }
+      ],
+      "parser_mapping": {
+        "status": "mapped",
+        "family": "claude",
+        "parser": "src/mimo_halo/traces/claude.py"
+      },
+      "notes": "50 encoded-cwd project dirs. 638 .jsonl transcripts map to the claude parser; .json/.md/.txt/.js sidecars (subagent markers, memory notes, tool artifacts) are not transcripts."
+    },
+    {
+      "id": "claude-history",
+      "harness_family": "claude-code",
+      "path": "~/.claude/history.jsonl",
+      "exists": true,
+      "discovery_command": "find ~/.claude/history.jsonl -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 1,
+      "total_bytes": 9626996,
+      "ext_counts": {
+        ".jsonl": 1
+      },
+      "size_bytes": {
+        "min": 9626996,
+        "median": 9626996,
+        "max": 9626996
+      },
+      "mtime_range_utc": [
+        "2026-09-17T12:06:21Z",
+        "2026-09-17T12:06:21Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 9626996,
+          "format": "jsonl",
+          "first_record_keys": [
+            "display",
+            "pastedContents",
+            "project",
+            "sessionId",
+            "timestamp"
+          ]
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "flat JSONL prompt index keyed by sessionId; contains raw prompt text (privacy-sensitive)",
+        "unmapped_because": "prompt-history index, not a session transcript"
+      },
+      "notes": ""
+    },
+    {
+      "id": "claude-session-env",
+      "harness_family": "claude-code",
+      "path": "~/.claude/session-env",
+      "exists": true,
+      "discovery_command": "find ~/.claude/session-env -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 1474,
+      "total_bytes": 489531,
+      "ext_counts": {
+        ".sh": 1474
+      },
+      "size_bytes": {
+        "min": 283,
+        "median": 333,
+        "max": 954
+      },
+      "mtime_range_utc": [
+        "2026-07-30T07:55:01Z",
+        "2026-09-17T14:13:44Z"
+      ],
+      "format_sniff": [
+        {
+          "ext": ".sh",
+          "format": "text",
+          "utf8": true,
+          "sample": "3 of 3 sniffed, all utf8 text"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "small shell scripts; may contain environment values (credential-adjacent; excluded from ingestion)",
+        "unmapped_because": "per-session shell env snapshots"
+      },
+      "notes": ""
+    },
+    {
+      "id": "claude-backups",
+      "harness_family": "claude-code",
+      "path": "~/.claude/backups",
+      "exists": true,
+      "discovery_command": "find ~/.claude/backups -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 5,
+      "total_bytes": 1882647,
+      "ext_counts": {
+        "<epoch-suffix>": 5
+      },
+      "size_bytes": {
+        "min": 369012,
+        "median": 369446,
+        "max": 387603
+      },
+      "mtime_range_utc": [
+        "2026-08-29T05:02:12Z",
+        "2026-09-17T13:38:05Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 387574,
+          "format": "jsonl-or-multiline-json",
+          "note": "first line not self-contained"
+        },
+        {
+          "bytes": 369446,
+          "format": "jsonl-or-multiline-json",
+          "note": "first line not self-contained"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "multiline JSON, first line not self-contained; sizes closely match the top-level claude state file (inference)",
+        "unmapped_because": "harness state backups"
+      },
+      "notes": ""
+    },
+    {
+      "id": "claude-cache",
+      "harness_family": "claude-code",
+      "path": "~/.claude/cache",
+      "exists": true,
+      "discovery_command": "find ~/.claude/cache -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 4,
+      "total_bytes": 934494,
+      "ext_counts": {
+        ".json": 3,
+        ".md": 1
+      },
+      "size_bytes": {
+        "min": 2,
+        "median": 107823,
+        "max": 718846
+      },
+      "mtime_range_utc": [
+        "2026-09-17T12:05:08Z",
+        "2026-09-17T12:06:07Z"
+      ],
+      "format_sniff": [
+        {
+          "ext": ".json",
+          "bytes": 2,
+          "format": "json",
+          "kind": "list"
+        },
+        {
+          "ext": ".json",
+          "bytes": 137,
+          "format": "json",
+          "kind": "object",
+          "keys": [
+            "sources",
+            "version"
+          ]
+        },
+        {
+          "ext": ".json",
+          "bytes": 215509,
+          "format": "jsonl-or-multiline-json"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "small JSON caches + one md file; not session transcripts",
+        "unmapped_because": "cache material"
+      },
+      "notes": ""
+    },
+    {
+      "id": "claude-sessions-dir",
+      "harness_family": "claude-code",
+      "path": "~/.claude/sessions",
+      "exists": true,
+      "discovery_command": "find ~/.claude/sessions -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 0,
+      "total_bytes": 0,
+      "ext_counts": {},
+      "size_bytes": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      },
+      "mtime_range_utc": null,
+      "format_sniff": [],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "present but contains no files at probe time",
+        "unmapped_because": "empty directory"
+      },
+      "notes": "exists but empty at probe time"
+    },
+    {
+      "id": "claude-state",
+      "harness_family": "claude-code",
+      "path": "~/.claude.json",
+      "exists": true,
+      "discovery_command": "stat -f 'bytes=%z mtime=%m' ~/.claude.json",
+      "files": 1,
+      "total_bytes": 369012,
+      "ext_counts": {
+        ".json": 1
+      },
+      "size_bytes": {
+        "min": 369012,
+        "median": 369012,
+        "max": 369012
+      },
+      "mtime_range_utc": [
+        "2026-09-17T14:13:44Z",
+        "2026-09-17T14:13:44Z"
+      ],
+      "format_sniff": [
+        {
+          "format": "json",
+          "kind": "object",
+          "whole_file_parse": true,
+          "top_level_keys": 99,
+          "note": "key names not recorded (state map may key on project paths)"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "single pretty-printed JSON object; project-scoped state; not a transcript",
+        "unmapped_because": "top-level harness state/config"
+      },
+      "notes": ""
+    },
+    {
+      "id": "codex-sessions",
+      "harness_family": "openai-codex",
+      "path": "~/.codex/sessions",
+      "exists": true,
+      "discovery_command": "find ~/.codex/sessions -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 2020,
+      "total_bytes": 6427779489,
+      "ext_counts": {
+        ".jsonl": 2020
+      },
+      "size_bytes": {
+        "min": 0,
+        "median": 470081,
+        "max": 631242533
+      },
+      "mtime_range_utc": [
+        "2025-09-10T07:17:29Z",
+        "2026-08-29T14:13:00Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "smallest-nonempty",
+          "bytes": 629,
+          "format": "jsonl",
+          "first_record_keys": [
+            "git",
+            "id",
+            "instructions",
+            "timestamp"
+          ]
+        },
+        {
+          "pick": "median-by-size",
+          "bytes": 468902,
+          "format": "jsonl",
+          "first_record_keys": [
+            "ordinal",
+            "payload",
+            "timestamp",
+            "type"
+          ]
+        },
+        {
+          "pick": "largest-sniffable",
+          "bytes": 65041257,
+          "format": "jsonl",
+          "first_record_keys": [
+            "ordinal",
+            "payload",
+            "timestamp",
+            "type"
+          ]
+        },
+        {
+          "pick": "overall-largest",
+          "bytes": 631242533,
+          "format": "not-sniffed",
+          "reason": "size>64MB"
+        }
+      ],
+      "parser_mapping": {
+        "status": "mapped",
+        "family": "codex",
+        "parser": "src/mimo_halo/traces/codex.py"
+      },
+      "notes": "YYYY/MM/DD rollout layout; includes some zero-byte files; older first-record shape lacks payload/ordinal keys (both shapes sniffed)."
+    },
+    {
+      "id": "codex-history",
+      "harness_family": "openai-codex",
+      "path": "~/.codex/history.jsonl",
+      "exists": true,
+      "discovery_command": "find ~/.codex/history.jsonl -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 1,
+      "total_bytes": 3185586,
+      "ext_counts": {
+        ".jsonl": 1
+      },
+      "size_bytes": {
+        "min": 3185586,
+        "median": 3185586,
+        "max": 3185586
+      },
+      "mtime_range_utc": [
+        "2026-08-29T09:31:15Z",
+        "2026-08-29T09:31:15Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 3185586,
+          "format": "jsonl",
+          "first_record_keys": [
+            "session_id",
+            "text",
+            "ts"
+          ]
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "flat JSONL keyed by session_id; contains raw prompt text (privacy-sensitive)",
+        "unmapped_because": "prompt-history index"
+      },
+      "notes": ""
+    },
+    {
+      "id": "codex-sqlite",
+      "harness_family": "openai-codex",
+      "path": "~/.codex/*.sqlite*",
+      "exists": true,
+      "discovery_command": "find ~/.codex -maxdepth 1 -name '*.sqlite*' -type f -exec stat -f '%z %m' {} + | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 16,
+      "total_bytes": 1228078040,
+      "ext_counts": {
+        ".sqlite": 6,
+        ".sqlite-shm": 5,
+        ".sqlite-wal": 5
+      },
+      "size_bytes": {
+        "min": 32768,
+        "median": 739172,
+        "max": 708202496
+      },
+      "mtime_range_utc": [
+        "2026-08-29T09:51:15Z",
+        "2026-09-22T12:47:14Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "smallest-main-db",
+          "bytes": 40960,
+          "format": "sqlite",
+          "magic": "SQLite format 3"
+        },
+        {
+          "pick": "largest-main-db",
+          "bytes": 708202496,
+          "format": "not-sniffed",
+          "reason": "size>64MB"
+        },
+        {
+          "pick": "sidecar-wal",
+          "format": "binary",
+          "note": "WAL sidecar present (live DB)"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "top-level codex dbs (log/queue/memories/goals families); future parser must open read-only (mode=ro) and map tables; schema not inspected this pass",
+        "unmapped_because": "SQLite databases (WAL)"
+      },
+      "notes": "",
+      "live_store": true
+    },
+    {
+      "id": "codex-log-dir",
+      "harness_family": "openai-codex",
+      "path": "~/.codex/log",
+      "exists": true,
+      "discovery_command": "find ~/.codex/log -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 0,
+      "total_bytes": 0,
+      "ext_counts": {},
+      "size_bytes": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      },
+      "mtime_range_utc": null,
+      "format_sniff": [],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "TUI log dir present but empty at probe time",
+        "unmapped_because": "empty directory"
+      },
+      "notes": "exists but empty at probe time"
+    },
+    {
+      "id": "codex-tmp",
+      "harness_family": "openai-codex",
+      "path": "~/.codex/tmp",
+      "exists": true,
+      "discovery_command": "find ~/.codex/tmp -type l | wc -l  # observed 508; find ~/.codex/tmp -type f | wc -l  # observed 1; find ~/.codex/tmp -type l -exec readlink {} + | sort -u | wc -l  # observed 1 distinct target",
+      "files": 509,
+      "total_bytes": 113108857856,
+      "ext_counts": {
+        "<symlink>": 508,
+        ".lock (dotfile)": 1
+      },
+      "size_bytes": {
+        "min": 0,
+        "median": 222655232,
+        "max": 222655232
+      },
+      "mtime_range_utc": [
+        "2026-09-09T22:17:07Z",
+        "2026-09-22T12:47:14Z"
+      ],
+      "format_sniff": [
+        {
+          "format": "not-sniffed",
+          "reason": "all non-empty targets >64MB"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "508 symlinks all resolve to one distinct external target (path not recorded); followed stat shows 222,655,232 B each; 1 zero-byte lock file; 281 dirs; find -type f sees only the lock. Future handling: resolve targets explicitly, do not follow blindly",
+        "unmapped_because": "symlink staging area"
+      },
+      "notes": ""
+    },
+    {
+      "id": "codex-dot-tmp",
+      "harness_family": "openai-codex",
+      "path": "~/.codex/.tmp",
+      "exists": true,
+      "discovery_command": "find ~/.codex/.tmp -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 29156,
+      "total_bytes": 441051219,
+      "ext_counts": {
+        ".md": 15735,
+        ".yaml": 3185,
+        ".json": 2667,
+        ".png": 1933,
+        "<none>": 1284,
+        ".svg": 1078,
+        ".py": 844,
+        ".js": 532,
+        ".txt": 394,
+        "<other>": 1468
+      },
+      "size_bytes": {
+        "min": 0,
+        "median": 2430,
+        "max": 50610784
+      },
+      "mtime_range_utc": [
+        "2026-04-11T08:01:27Z",
+        "2026-09-22T12:17:13Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "smallest",
+          "bytes": 3,
+          "format": "text",
+          "utf8": true
+        },
+        {
+          "pick": "median",
+          "ext": ".md",
+          "bytes": 2431,
+          "format": "text",
+          "utf8": true
+        },
+        {
+          "pick": "largest",
+          "bytes": 50610784,
+          "format": "binary",
+          "first_bytes_hex": "cffaedfe"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "mixed checkout/tool caches (git object .pack/.idx, download .part-*, Mach-O binaries, docs); only 3 .jsonl files present",
+        "unmapped_because": "working scratch/cache, not transcripts"
+      },
+      "notes": ""
+    },
+    {
+      "id": "pi-sessions",
+      "harness_family": "pi",
+      "path": "~/.pi/agent/sessions",
+      "exists": true,
+      "discovery_command": "find ~/.pi/agent/sessions -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 5401,
+      "total_bytes": 2895099255,
+      "ext_counts": {
+        ".log": 2548,
+        ".jsonl": 1457,
+        ".md": 624,
+        ".json": 336,
+        ".py": 91,
+        ".txt": 81,
+        ".os": 64,
+        ".yaml": 35,
+        ".tombstone": 26,
+        ".ts": 25,
+        ".go": 21,
+        "<other>": 734
+      },
+      "size_bytes": {
+        "min": 0,
+        "median": 25391,
+        "max": 265086031
+      },
+      "mtime_range_utc": [
+        "2026-08-13T09:03:13Z",
+        "2026-09-22T12:31:21Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "ts-uuid transcript (session-first)",
+          "bytes": 1476,
+          "format": "jsonl",
+          "first_record_keys": [
+            "cwd",
+            "id",
+            "timestamp",
+            "type",
+            "version"
+          ]
+        },
+        {
+          "pick": "ts-uuid transcript resume shape",
+          "bytes": 26007395,
+          "format": "jsonl",
+          "first_record_keys": [
+            "cwd",
+            "id",
+            "parentSession",
+            "timestamp",
+            "type",
+            "version"
+          ]
+        },
+        {
+          "pick": "memory sidecar",
+          "bytes": 764866,
+          "format": "jsonl",
+          "first_record_keys": [
+            "pad",
+            "title",
+            "type",
+            "updatedAt",
+            "v"
+          ]
+        },
+        {
+          "pick": "largest jsonl",
+          "bytes": 265086031,
+          "format": "not-sniffed",
+          "reason": "size>64MB"
+        }
+      ],
+      "parser_mapping": {
+        "status": "mixed",
+        "mapped": {
+          "family": "pi",
+          "parser": "src/mimo_halo/traces/pi.py",
+          "applies_to": "864 ts-uuid.jsonl transcripts (522 session-first with parentSession, 336 without; 6 >64MB not sniffed)"
+        },
+        "unmapped": {
+          "family": "unmapped",
+          "applies_to": "593 memory/topic sidecar .jsonl (first record {pad,title,type,updatedAt,v}), 2548 .log tool-output logs, .lock/.tombstone markers, attached .md/.py/.txt artifacts",
+          "future_parser_must_handle": "memory sidecars are single-topic JSONL metadata; .log files are raw tool output text (privacy-sensitive); transcripts must be selected by ts-uuid basename"
+        }
+      },
+      "notes": "100 encoded-cwd project dirs; whole sessions tree walked read-only."
+    },
+    {
+      "id": "pi-backups",
+      "harness_family": "pi",
+      "path": "~/.pi/agent/backups",
+      "exists": true,
+      "discovery_command": "find ~/.pi/agent/backups -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 4,
+      "total_bytes": 2169,
+      "ext_counts": {
+        ".json": 3,
+        "<none>": 1
+      },
+      "size_bytes": {
+        "min": 155,
+        "median": 538,
+        "max": 938
+      },
+      "mtime_range_utc": [
+        "2026-08-24T14:52:06Z",
+        "2026-09-09T19:26:15Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 387,
+          "format": "jsonl-or-multiline-json",
+          "note": "first line not self-contained"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "tiny JSON blobs from the omp-migration snapshot; not transcripts",
+        "unmapped_because": "migration backup marker files"
+      },
+      "notes": ""
+    },
+    {
+      "id": "omp-sessions",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/agent/sessions",
+      "exists": true,
+      "discovery_command": "find ~/.omp/agent/sessions -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 4825,
+      "total_bytes": 26256576603,
+      "ext_counts": {
+        ".log": 2709,
+        ".md": 607,
+        ".jsonl": 560,
+        ".os": 346,
+        ".json": 240,
+        ".ts": 147,
+        ".txt": 119,
+        ".py": 16,
+        ".cpp": 13,
+        ".rs": 11,
+        ".lock": 10,
+        "<other>": 447
+      },
+      "size_bytes": {
+        "min": 0,
+        "median": 19784,
+        "max": 24820088161
+      },
+      "mtime_range_utc": [
+        "2026-09-10T09:02:13Z",
+        "2026-09-22T12:49:29Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "ts-uuid transcript (title-first)",
+          "bytes": 13142,
+          "format": "jsonl",
+          "first_record_keys": [
+            "pad",
+            "source",
+            "title",
+            "type",
+            "updatedAt",
+            "v"
+          ]
+        },
+        {
+          "pick": "ts-uuid transcript variant",
+          "bytes": 843789,
+          "format": "jsonl",
+          "first_record_keys": [
+            "pad",
+            "title",
+            "type",
+            "updatedAt",
+            "v"
+          ]
+        },
+        {
+          "pick": "largest jsonl",
+          "bytes": 24820088161,
+          "format": "not-sniffed",
+          "reason": "size>64MB"
+        }
+      ],
+      "parser_mapping": {
+        "status": "mixed",
+        "mapped": {
+          "family": "omp",
+          "parser": "src/mimo_halo/traces/pi.py (parse_omp_session)",
+          "applies_to": "45 ts-uuid.jsonl transcripts; ALL observed to start with a title record ({pad,source,title,...} x43, {pad,title,...} x2) - the pi-family parser skips unknown record types as meta until session/message records"
+        },
+        "unmapped": {
+          "family": "unmapped",
+          "applies_to": "515 memory/topic sidecar .jsonl (+1 >64MB), 2709 per-session tool-log .log files, .jsonl.lock.os locks (0B), attached .md/.ts/.py artifacts",
+          "future_parser_must_handle": "transcripts selected by ts-uuid basename; sidecar dirs hold raw tool output (privacy-sensitive)"
+        }
+      },
+      "notes": "11 encoded-cwd project dirs; live store (shell re-probe minutes later: 4837 files / 26,259,999,475 B).",
+      "live_store": true
+    },
+    {
+      "id": "omp-logs",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/logs",
+      "exists": true,
+      "discovery_command": "find ~/.omp/logs -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 107,
+      "total_bytes": 301757393,
+      "ext_counts": {
+        ".log": 67,
+        ".json": 40
+      },
+      "size_bytes": {
+        "min": 152,
+        "median": 27526,
+        "max": 25335032
+      },
+      "mtime_range_utc": [
+        "2026-09-12T10:09:16Z",
+        "2026-09-22T12:48:36Z"
+      ],
+      "format_sniff": [
+        {
+          "ext": ".log",
+          "format": "jsonl",
+          "first_record_keys": [
+            "env",
+            "level",
+            "message",
+            "pid",
+            "reason",
+            "timestamp"
+          ]
+        },
+        {
+          "ext": ".json",
+          "format": "jsonl-or-multiline-json"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "JSONL log records (level/message/pid fields); operational logs, not conversation transcripts",
+        "unmapped_because": "harness structured logs"
+      },
+      "notes": "",
+      "live_store": true
+    },
+    {
+      "id": "omp-stats",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/stats.db",
+      "exists": true,
+      "discovery_command": "find ~/.omp/stats.db -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 1,
+      "total_bytes": 35512320,
+      "ext_counts": {
+        ".db": 1
+      },
+      "size_bytes": {
+        "min": 35512320,
+        "median": 35512320,
+        "max": 35512320
+      },
+      "mtime_range_utc": [
+        "2026-09-16T11:04:21Z",
+        "2026-09-16T11:04:21Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 35512320,
+          "format": "sqlite",
+          "magic": "SQLite format 3"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "read-only SQLite reader; aggregate usage counters (schema not inspected this pass)",
+        "unmapped_because": "usage-stats SQLite"
+      },
+      "notes": ""
+    },
+    {
+      "id": "omp-agent-dbs",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/agent/*.db*",
+      "exists": true,
+      "discovery_command": "find ~/.omp/agent -maxdepth 1 -name '*.db*' -type f -exec stat -f '%z %m' {} + | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 9,
+      "total_bytes": 10997912,
+      "ext_counts": {
+        ".db": 3,
+        ".db-shm": 3,
+        ".db-wal": 3
+      },
+      "size_bytes": {
+        "min": 0,
+        "median": 32768,
+        "max": 8663040
+      },
+      "mtime_range_utc": [
+        "2026-09-15T11:02:58Z",
+        "2026-09-22T12:54:47Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "largest-main-db",
+          "bytes": 8663040,
+          "format": "sqlite",
+          "magic": "SQLite format 3"
+        },
+        {
+          "pick": "sidecar-wal/shm",
+          "format": "binary",
+          "note": "WAL sidecars present (live DBs)"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "history.db is the likely session-history index; future parser must open read-only and map tables; schema not inspected this pass",
+        "unmapped_because": "agent/history/models SQLite trio (WAL)"
+      },
+      "notes": "",
+      "live_store": true
+    },
+    {
+      "id": "omp-blobs",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/agent/blobs",
+      "exists": true,
+      "discovery_command": "find ~/.omp/agent/blobs -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 754,
+      "total_bytes": 52831418,
+      "ext_counts": {
+        "<none>": 377,
+        ".png": 283,
+        ".webp": 91,
+        ".jpg": 3
+      },
+      "size_bytes": {
+        "min": 1970,
+        "median": 66269,
+        "max": 1031135
+      },
+      "mtime_range_utc": [
+        "2026-09-10T21:42:56Z",
+        "2026-09-22T12:53:18Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 1970,
+          "format": "binary",
+          "first_bytes_hex": "52494646",
+          "note": "RIFF/webp"
+        },
+        {
+          "bytes": 66269,
+          "format": "binary",
+          "first_bytes_hex": "89504e47",
+          "note": "PNG"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "content-addressed image blobs referenced by traces; binary, no text parsing needed",
+        "unmapped_because": "media blob store"
+      },
+      "notes": ""
+    },
+    {
+      "id": "omp-custom-session-files",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/agent/custom-session-files",
+      "exists": true,
+      "discovery_command": "find ~/.omp/agent/custom-session-files -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 5,
+      "total_bytes": 578,
+      "ext_counts": {
+        "<none>": 5
+      },
+      "size_bytes": {
+        "min": 94,
+        "median": 97,
+        "max": 146
+      },
+      "mtime_range_utc": [
+        "2026-09-16T14:19:10Z",
+        "2026-09-18T09:40:07Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 94,
+          "format": "text",
+          "utf8": true
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "5 small utf8 text files; purpose not established",
+        "unmapped_because": "tiny per-session marker files"
+      },
+      "notes": ""
+    },
+    {
+      "id": "omp-imports",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/agent/imports",
+      "exists": true,
+      "discovery_command": "find ~/.omp/agent/imports -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 1,
+      "total_bytes": 17703031,
+      "ext_counts": {
+        ".jsonl": 1
+      },
+      "size_bytes": {
+        "min": 17703031,
+        "median": 17703031,
+        "max": 17703031
+      },
+      "mtime_range_utc": [
+        "2026-09-09T19:29:06Z",
+        "2026-09-09T19:29:06Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 17703031,
+          "format": "jsonl",
+          "first_record_keys": [
+            "cwd",
+            "id",
+            "timestamp",
+            "type",
+            "version"
+          ]
+        }
+      ],
+      "parser_mapping": {
+        "status": "mapped",
+        "family": "omp",
+        "parser": "src/mimo_halo/traces/omp.py"
+      },
+      "notes": ""
+    },
+    {
+      "id": "omp-terminal-sessions",
+      "harness_family": "oh-my-pi",
+      "path": "~/.omp/agent/terminal-sessions",
+      "exists": true,
+      "discovery_command": "find ~/.omp/agent/terminal-sessions -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 14,
+      "total_bytes": 2575,
+      "ext_counts": {
+        "<none>": 14
+      },
+      "size_bytes": {
+        "min": 131,
+        "median": 198,
+        "max": 217
+      },
+      "mtime_range_utc": [
+        "2026-09-16T09:43:54Z",
+        "2026-09-22T12:24:15Z"
+      ],
+      "format_sniff": [
+        {
+          "bytes": 198,
+          "format": "text",
+          "utf8": true
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "tiny utf8 text files; terminal state, not conversation",
+        "unmapped_because": "terminal session metadata"
+      },
+      "notes": ""
+    },
+    {
+      "id": "opencode-storage",
+      "harness_family": "opencode",
+      "path": "~/.local/share/opencode/{storage,log,plans,tool-output,project,opencode.db*}",
+      "exists": true,
+      "discovery_command": "find ~/.local/share/opencode/storage ~/.local/share/opencode/log ~/.local/share/opencode/plans ~/.local/share/opencode/tool-output ~/.local/share/opencode/project -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '<shell_template>'; stat -f 'bytes=%z mtime=%m' ~/.local/share/opencode/opencode.db",
+      "files": 48954,
+      "total_bytes": 3501149125,
+      "ext_counts": {
+        ".json": 48881,
+        ".md": 32,
+        "<none>": 13,
+        ".log": 11,
+        ".csv": 10,
+        ".gs": 2,
+        ".mjs": 2,
+        ".db": 1,
+        ".db-shm": 1,
+        ".db-wal": 1
+      },
+      "size_bytes": {
+        "min": 1,
+        "median": 638,
+        "max": 2640240640
+      },
+      "mtime_range_utc": [
+        "2025-07-15T09:28:05Z",
+        "2026-09-22T08:58:00Z"
+      ],
+      "format_sniff": [
+        {
+          "pick": "message json (assistant)",
+          "bytes": 638,
+          "format": "json",
+          "kind": "object",
+          "keys": [
+            "agent",
+            "cost",
+            "finish",
+            "id",
+            "mode",
+            "modelID",
+            "parentID",
+            "path",
+            "providerID",
+            "role",
+            "sessionID",
+            "time",
+            "tokens"
+          ]
+        },
+        {
+          "pick": "message json (user)",
+          "bytes": 157,
+          "format": "json",
+          "kind": "object",
+          "keys": [
+            "id",
+            "role",
+            "sessionID",
+            "time"
+          ]
+        },
+        {
+          "pick": "session_diff json",
+          "bytes": 2,
+          "format": "json",
+          "kind": "list"
+        },
+        {
+          "pick": "plans md",
+          "bytes": 1418,
+          "format": "text",
+          "utf8": true
+        },
+        {
+          "pick": "opencode.db",
+          "bytes": 2640240640,
+          "format": "not-sniffed",
+          "reason": "size>64MB (wal/shm sidecars present -> live SQLite)"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "future parser must (a) read opencode.db read-only (mode=ro; >64MB) and map its message tables, and (b) walk storage/message/ses_*/ + storage/part/msg_* + session_diff JSON files; bin/ and snapshot/ subdirs (language-server binaries, git snapshots) are excluded as non-trace",
+        "unmapped_because": "dual store: one large SQLite + per-message JSON parts (already flagged opencode adapter needed by manifests/datasets/discovery-summary.json)"
+      },
+      "notes": "",
+      "subtotals_shell": {
+        "storage": {
+          "files": 48673,
+          "bytes": 727050119
+        },
+        "log": {
+          "files": 11,
+          "bytes": 21299603
+        },
+        "plans": {
+          "files": 31,
+          "bytes": 530227
+        },
+        "tool-output": {
+          "files": 9,
+          "bytes": 111315181
+        },
+        "project": {
+          "files": 227,
+          "bytes": 647819
+        },
+        "opencode.db": {
+          "files": 1,
+          "bytes": 2640240640
+        },
+        "opencode.db-wal+shm": {
+          "files": 2,
+          "bytes": 65536
+        }
+      }
+    },
+    {
+      "id": "opencode-config",
+      "harness_family": "opencode",
+      "path": "~/.config/opencode",
+      "exists": true,
+      "discovery_command": "find ~/.config/opencode -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 758,
+      "total_bytes": 4538413,
+      "ext_counts": {
+        ".ts": 394,
+        ".js": 138,
+        ".cjs": 97,
+        ".cts": 97,
+        ".json": 17,
+        ".md": 9,
+        "<other>": 6
+      },
+      "size_bytes": {
+        "min": 11,
+        "median": 2155,
+        "max": 160328
+      },
+      "mtime_range_utc": [
+        "2025-10-23T07:09:56Z",
+        "2026-07-31T07:38:56Z"
+      ],
+      "format_sniff": [
+        {
+          "ext": ".js",
+          "format": "text",
+          "utf8": true
+        },
+        {
+          "ext": ".ts",
+          "format": "text",
+          "utf8": true
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "TypeScript/JavaScript plugin sources; not traces",
+        "unmapped_because": "config/plugin code"
+      },
+      "notes": ""
+    },
+    {
+      "id": "copilot-cli-dir",
+      "harness_family": "github-copilot-cli",
+      "path": "~/.copilot",
+      "exists": true,
+      "discovery_command": "find ~/.copilot -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 3,
+      "total_bytes": 1849,
+      "ext_counts": {
+        ".log": 2,
+        ".json": 1
+      },
+      "size_bytes": {
+        "min": 131,
+        "median": 723,
+        "max": 995
+      },
+      "mtime_range_utc": [
+        "2026-07-28T18:26:15Z",
+        "2026-09-22T12:42:39Z"
+      ],
+      "format_sniff": [
+        {
+          "ext": ".json",
+          "format": "text",
+          "utf8": true
+        },
+        {
+          "ext": ".log",
+          "format": "text",
+          "utf8": true
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "no transcript store found; ide/ subdir empty; a future adapter would need an actual session store (none observed)",
+        "unmapped_because": "config + process logs only"
+      },
+      "notes": ""
+    },
+    {
+      "id": "grokbot-dir",
+      "harness_family": "grokbot",
+      "path": "~/.grokbot",
+      "exists": true,
+      "discovery_command": "find ~/.grokbot -type f -exec stat -f '%z %m' {} + 2>/dev/null | awk '{n++; s+=$1; if(n==1||$1<min)min=$1; if($1>max)max=$1; if(n==1||$2<mt0)mt0=$2; if($2>mt1)mt1=$2} END {printf \"files=%d bytes=%d min=%d max=%d mtime=[%d,%d]\\n\", n,s,min,max,mt0,mt1}'",
+      "files": 7,
+      "total_bytes": 12783,
+      "ext_counts": {
+        ".json": 5,
+        ".grokbot-data-root-v1 (dotfile)": 1,
+        ".log": 1
+      },
+      "size_bytes": {
+        "min": 14,
+        "median": 685,
+        "max": 9309
+      },
+      "mtime_range_utc": [
+        "2026-09-17T13:08:46Z",
+        "2026-09-22T12:49:30Z"
+      ],
+      "format_sniff": [
+        {
+          "ext": "<none>",
+          "format": "jsonl",
+          "first_record_keys": [
+            "version"
+          ]
+        },
+        {
+          "ext": ".json",
+          "format": "jsonl-or-multiline-json"
+        },
+        {
+          "ext": ".log",
+          "format": "json-or-text"
+        }
+      ],
+      "parser_mapping": {
+        "status": "unmapped",
+        "family": "unmapped",
+        "future_parser_must_handle": "local-exec supervisor state/settings; no session transcripts observed",
+        "unmapped_because": "daemon state + log only"
+      },
+      "notes": ""
+    }
+  ],
+  "named_not_probed": [
+    {
+      "path": "~/Claude",
+      "observation": "dir with Projects/ and Scheduled/ (desktop-style Claude data); name-only"
+    },
+    {
+      "path": "~/.lmstudio/conversations",
+      "observation": "3 *.conversation.json (local LLM app chats, not a coding harness)"
+    },
+    {
+      "path": "~/.cursor",
+      "observation": "config only (argv/cli-config/ide_state/mcp json + extensions)"
+    },
+    {
+      "path": "~/.windsurf",
+      "observation": "config/extension stubs only"
+    },
+    {
+      "path": "~/.codeium/windsurf",
+      "observation": "config stub only"
+    },
+    {
+      "path": "~/.electric-coder",
+      "observation": "auth/ only"
+    },
+    {
+      "path": "~/.enabled-ai",
+      "observation": "single session.json"
+    },
+    {
+      "path": "~/.codemod",
+      "observation": "single session.json + codemod recipe dirs"
+    },
+    {
+      "path": "~/.gk",
+      "observation": "workspace/repo mapping jsons only"
+    },
+    {
+      "path": "~/.agents",
+      "observation": "skills store (.skill-lock.json, skills/); not traces"
+    },
+    {
+      "path": "~/.codexbar",
+      "observation": "single config.json (menu-bar app)"
+    },
+    {
+      "path": "~/.copilot/ide",
+      "observation": "empty"
+    },
+    {
+      "path": "~/.claude/plugins",
+      "observation": "plugin catalog/cache; not traces"
+    },
+    {
+      "path": "~/.claude/skills",
+      "observation": "skill definitions; not traces"
+    },
+    {
+      "path": "~/Documents/pi-codex-sessions-unsloth.jsonl",
+      "observation": "standalone 118,214,198 B trace-derived corpus file (>64MB: count/size only, not sniffed)"
+    },
+    {
+      "path": "~/.claude.json.tmp.*",
+      "observation": "stale top-level state temp files in ~ (count varies; not a store)"
+    },
+    {
+      "path": "~/.zsh_sessions",
+      "observation": "shell session history - explicitly out of scope (not a coding harness)"
+    }
+  ],
+  "probed_absent": [
+    "~/.config/claude",
+    "~/.claude/threads",
+    "~/.codex/archived_sessions",
+    "~/.codex/logs",
+    "~/.config/codex",
+    "~/.config/pi",
+    "~/.pi-agent",
+    "~/.opencode",
+    "~/.gemini",
+    "~/.aider",
+    "~/.config/goose",
+    "~/.config/amp",
+    "~/.qwen",
+    "~/.iflow",
+    "~/.continue",
+    "~/.plandex",
+    "~/.sweagent"
+  ]
+}

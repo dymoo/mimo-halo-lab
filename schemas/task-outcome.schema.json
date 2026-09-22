@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mimo-halo-lab/schemas/task-outcome.schema.json",
+  "title": "Task outcome record",
+  "description": "One line of a JSONL task-outcome file: the observed outcome of one (task_id, model_id, seed) evaluation run, produced by an external evaluation runner. This schema describes observed inputs to the paired analysis (mimo_halo.evaluation.paired); it defines no runner logic and never derives task success from token or distribution agreement.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_id",
+    "model_id",
+    "seed",
+    "success",
+    "turns",
+    "context_tokens",
+    "language",
+    "domain",
+    "catastrophic",
+    "failure_category"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Record schema version; must be 1."
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Underlying task identity. All retries/harness attempts on the same repo issue share one task_id; seeds repeat the same task_id."
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Evaluated model identifier. Exactly one distinct model_id per JSONL file; reference and candidate files must use different model_id values."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Inference seed used for this run. Records for the same task_id with different seeds are repeated measurements of one task and are clustered, never treated as independent tasks."
+    },
+    "success": {
+      "type": "boolean",
+      "description": "Observed task success from the runner (solved/oracle passed). Boolean only; never inferred from token agreement or distribution metrics."
+    },
+    "turns": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Agent turns taken. 0 means no agent turn ran and is only valid together with success=false (a failed runtime, kept in statistics under its own bucket); success=true always requires turns >= 1."
+    },
+    "context_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Peak or final context length in tokens as observed by the runner."
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "typescript",
+        "javascript",
+        "python",
+        "rust",
+        "go",
+        "cpp",
+        "sql",
+        "shell",
+        "other"
+      ]
+    },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "frontend",
+        "backend",
+        "databases",
+        "distributed",
+        "concurrency",
+        "network",
+        "native",
+        "build",
+        "ci",
+        "infra",
+        "api",
+        "testing"
+      ]
+    },
+    "catastrophic": {
+      "type": "boolean",
+      "description": "Observed catastrophe flag: unrelated destructive edits, loops, fake test success, goal loss, malformed destructive shell, uncontrolled rewrite, severe context confusion."
+    },
+    "failure_category": {
+      "type": "string",
+      "enum": [
+        "none",
+        "misunderstanding",
+        "search",
+        "architecture",
+        "implementation",
+        "tool",
+        "compiler",
+        "test",
+        "recovery",
+        "forgotten_constraint",
+        "context_loss",
+        "runtime_corruption",
+        "timeout",
+        "other"
+      ],
+      "description": "Observed failure taxonomy; \"none\" when success is true."
+    },
+    "record_type": {
+      "type": "string",
+      "enum": ["task", "negative_control"],
+      "default": "task",
+      "description": "\"task\" (default) for normal task outcomes; \"negative_control\" for protocol negative-control observations. Negative controls are excluded from the main paired task-success statistics and summarized separately; they are observed inputs, not runner logic."
+    },
+    "timings": {
+      "type": "object",
+      "description": "Optional observed timing fields in seconds (e.g. wall_seconds, compile_seconds). Values must be non-boolean, finite numbers >= 0.",
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    },
+    "tokens": {
+      "type": "object",
+      "description": "Optional observed token-count fields (e.g. generated_tokens). Values must be non-boolean integers >= 0.",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "toolmetrics": {
+      "type": "object",
+      "description": "Optional observed tool-call metrics (e.g. tool_calls, bad_tool_calls). Values must be non-boolean integers >= 0.",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["turns"],
+        "properties": { "turns": { "const": 0 } }
+      },
+      "then": {
+        "properties": { "success": { "const": false } }
+      },
+      "description": "turns=0 means no agent turn ran (a runtime failure); a zero-turn record is never a success."
+    }
+  ]
+}

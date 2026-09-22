@@ -1,0 +1,107 @@
+{
+ "schema_version": 1,
+ "repo_id": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+ "revision": "5711b268169967567844e1e560e8a3966da959b1",
+ "native": {
+  "retained_experts": 256,
+  "moe_layers": 47,
+  "text_stored_bytes": 169754520448,
+  "text_logical_parameters": 308778780864,
+  "non_expert_stored_bytes": 8894573440,
+  "per_retained_expert_across_moe_layers_stored_bytes": 628359168,
+  "per_retained_expert_across_moe_layers_logical_parameters": 1182793728,
+  "tensor_records_per_retained_expert_across_moe_layers": 282,
+  "per_layer_expert_layout": {
+   "stored_bytes": 13369344,
+   "logical_parameters": 25165824,
+   "tensors_per_expert_instance": 6
+  },
+  "total_expert_instances": 12032,
+  "total_expert_tensor_records": 72192,
+  "router_stored_bytes": 98614272,
+  "router_logical_parameters": 49295104,
+  "router_stored_bytes_per_retained_expert_across_moe_layers": 385212,
+  "router_logical_parameters_per_retained_expert_across_moe_layers": 192559,
+  "per_retained_expert_note": "per_retained_expert_across_moe_layers_* is one expert index summed over every MoE layer, not one layer-instance; the single-instance cost is per_layer_expert_layout",
+  "router_note": "dense BF16 gate weight + F32 correction bias per MoE layer; row-uniform, quantization null; pruning/maps slices these rows to the retained expert count and prune_candidates subtracts router_*_removed accordingly"
+ },
+ "prune_candidates": [
+  {
+   "retained_experts": 256,
+   "dropped_experts": 0,
+   "native_text_payload_bytes": 169754520448,
+   "logical_parameters": 308778780864,
+   "router_stored_bytes_removed": 0,
+   "router_logical_parameters_removed": 0
+  },
+  {
+   "retained_experts": 192,
+   "dropped_experts": 64,
+   "native_text_payload_bytes": 129514880128,
+   "logical_parameters": 233067658496,
+   "router_stored_bytes_removed": 24653568,
+   "router_logical_parameters_removed": 12323776
+  },
+  {
+   "retained_experts": 176,
+   "dropped_experts": 80,
+   "native_text_payload_bytes": 119454970048,
+   "logical_parameters": 214139877904,
+   "router_stored_bytes_removed": 30816960,
+   "router_logical_parameters_removed": 15404720
+  },
+  {
+   "retained_experts": 160,
+   "dropped_experts": 96,
+   "native_text_payload_bytes": 109395059968,
+   "logical_parameters": 195212097312,
+   "router_stored_bytes_removed": 36980352,
+   "router_logical_parameters_removed": 18485664
+  },
+  {
+   "retained_experts": 144,
+   "dropped_experts": 112,
+   "native_text_payload_bytes": 99335149888,
+   "logical_parameters": 176284316720,
+   "router_stored_bytes_removed": 43143744,
+   "router_logical_parameters_removed": 21566608
+  }
+ ],
+ "precision_costs": {
+  "mxfp4_native_u8_packed": {
+   "bytes_per_retained_expert_across_moe_layers": 628359168,
+   "bits_per_logical_parameter_exact": 4.25,
+   "note": "official native format: U8 nibble-packed weights + per-32 scale bytes; not interchangeable with ROCm FP4 GGUF formats"
+  },
+  "bf16": {
+   "bytes_per_retained_expert_across_moe_layers": 2365587456
+  }
+ },
+ "components": {
+  "audio": {
+   "stored_bytes": 522254336,
+   "logical_parameters": 261127168,
+   "tensors": 95
+  },
+  "text": {
+   "stored_bytes": 169754520448,
+   "logical_parameters": 308778780864,
+   "tensors": 72574
+  },
+  "mtp": {
+   "stored_bytes": 1189400448,
+   "logical_parameters": 987820224,
+   "tensors": 48
+  },
+  "vision": {
+   "stored_bytes": 1457188864,
+   "logical_parameters": 728594432,
+   "tensors": 364
+  },
+  "dflash": {
+   "stored_bytes": 2936114304,
+   "logical_parameters": 1468057152,
+   "tensors": 63
+  }
+ }
+}

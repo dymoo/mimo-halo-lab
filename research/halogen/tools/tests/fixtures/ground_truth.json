@@ -1,0 +1,213 @@
+{
+  "_toolchain": {
+    "llc": "Homebrew LLVM version 23.1.1",
+    "llvm-mc": "Homebrew LLVM version 23.1.1",
+    "llvm-objdump": "Homebrew LLVM version 23.1.1",
+    "clang-offload-bundler": "Homebrew clang-offload-bundler version 23.1.1",
+    "llvm-objcopy": "llvm-objcopy, compatible with GNU objcopy",
+    "notes": "synthetic fixtures only; built with brew LLVM on the dev host; no real Halogen binary involved"
+  },
+  "fixtures": {
+    "fx_qgemm_w32.o": {
+      "kernels": [
+        {
+          "name": "fx_qgemm_w32",
+          "vgpr": 48,
+          "sgpr": 40,
+          "lds": 32768,
+          "wave_size": 32,
+          "kernarg_segment_size": 128,
+          "max_flat_workgroup_size": 256,
+          "private_segment_fixed_size": 0,
+          "likely_operation": "fused_dequant_gemm",
+          "min_confidence": 0.5,
+          "isa_size": 128,
+          "kd_preload": {
+            "length": 0,
+            "offset": 0
+          },
+          "sources": {
+            "vgpr": "metadata",
+            "lds": "metadata"
+          }
+        }
+      ],
+      "input_error": false
+    },
+    "fx_reduce_w64.o": {
+      "kernels": [
+        {
+          "name": "fx_reduce_w64",
+          "vgpr": 32,
+          "sgpr": 24,
+          "lds": 8192,
+          "wave_size": 64,
+          "kernarg_segment_size": 64,
+          "max_flat_workgroup_size": 1024,
+          "private_segment_fixed_size": 0,
+          "likely_operation": "reduction",
+          "min_confidence": 0.6,
+          "isa_size": 76,
+          "kd_preload": {
+            "length": 0,
+            "offset": 0
+          },
+          "sources": {
+            "wave_size": "metadata"
+          }
+        }
+      ],
+      "input_error": false
+    },
+    "fx_missing_fields.o": {
+      "kernels": [
+        {
+          "name": "fx_missing_fields",
+          "vgpr": null,
+          "sgpr": 16,
+          "lds": 4096,
+          "wave_size": null,
+          "kernarg_segment_size": 96,
+          "max_flat_workgroup_size": 512,
+          "private_segment_fixed_size": 0,
+          "likely_operation": "unclassified",
+          "min_confidence": 0.0,
+          "isa_size": 4,
+          "kd_preload": null,
+          "nulls": {
+            "vgpr": "absent or null in kernel metadata",
+            "wave_size": "absent or null in kernel metadata",
+            "kd_preload": "descriptor not found"
+          }
+        }
+      ],
+      "input_error": false
+    },
+    "fx_nometa.o": {
+      "kernels": [
+        {
+          "name": "fx_nometa",
+          "vgpr": 16,
+          "sgpr": null,
+          "lds": 4096,
+          "wave_size": 32,
+          "kernarg_segment_size": 128,
+          "max_flat_workgroup_size": null,
+          "private_segment_fixed_size": 0,
+          "likely_operation": "unclassified",
+          "min_confidence": 0.0,
+          "isa_size": 4,
+          "kd_preload": {
+            "length": 0,
+            "offset": 0
+          },
+          "sources": {
+            "vgpr": "kd",
+            "lds": "kd",
+            "wave_size": "kd"
+          },
+          "nulls": {
+            "sgpr": "granule encodes 0",
+            "max_flat_workgroup_size": "not derivable from the kernel descriptor"
+          }
+        }
+      ],
+      "input_error": false
+    },
+    "fx_v3_classic.o": {
+      "kernels": [
+        {
+          "name": "fx_v3_classic",
+          "vgpr": 32,
+          "sgpr": 24,
+          "lds": 2048,
+          "wave_size": 64,
+          "kernarg_segment_size": 64,
+          "max_flat_workgroup_size": 256,
+          "private_segment_fixed_size": 0,
+          "likely_operation": "unclassified",
+          "min_confidence": 0.0,
+          "isa_size": 20,
+          "kd_preload": null,
+          "schema": "classic",
+          "nulls": {
+            "kd_preload": "descriptor not found"
+          }
+        }
+      ],
+      "input_error": false
+    },
+    "fx_fat_bundle.bin": {
+      "kernels": [
+        {
+          "name": "fx_qgemm_w32",
+          "vgpr": 48,
+          "sgpr": 40,
+          "lds": 32768,
+          "wave_size": 32,
+          "kernarg_segment_size": 128,
+          "max_flat_workgroup_size": 256,
+          "private_segment_fixed_size": 0,
+          "likely_operation": "fused_dequant_gemm",
+          "min_confidence": 0.5,
+          "isa_size": 128,
+          "kd_preload": {
+            "length": 0,
+            "offset": 0
+          },
+          "sources": {
+            "vgpr": "metadata",
+            "lds": "metadata"
+          }
+        }
+      ],
+      "bundles": [
+        {
+          "format": "clang-offload-bundle",
+          "entry_ids": [
+            "host-x86_64-unknown-linux-gnu-",
+            "hipv4-amdgcn-amd-amdhsa--gfx1151"
+          ]
+        }
+      ],
+      "input_error": false
+    },
+    "fx_hostelf_bundle.o": {
+      "kernels": [
+        {
+          "name": "fx_qgemm_w32",
+          "vgpr": 48,
+          "sgpr": 40,
+          "lds": 32768,
+          "wave_size": 32,
+          "kernarg_segment_size": 128,
+          "max_flat_workgroup_size": 256,
+          "private_segment_fixed_size": 0,
+          "likely_operation": "fused_dequant_gemm",
+          "min_confidence": 0.5,
+          "isa_size": 128,
+          "kd_preload": {
+            "length": 0,
+            "offset": 0
+          },
+          "sources": {
+            "vgpr": "metadata",
+            "lds": "metadata"
+          }
+        }
+      ],
+      "bundles": [
+        {
+          "format": "clang-offload-bundle",
+          "entry_ids": null
+        }
+      ],
+      "kind": "host-elf",
+      "input_error": false
+    },
+    "fx_garbage.bin": {
+      "kernels": [],
+      "input_error_contains": "no AMDGPU code object found"
+    }
+  }
+}

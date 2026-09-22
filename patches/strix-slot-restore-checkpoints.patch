@@ -1,0 +1,99 @@
+# strix-slot-restore-checkpoints.patch
+#
+# Mechanism (see docs/nvme-continuation.md for the regression seam):
+#   POST /slots/{id}?action=restore has two defects on the pinned runtime:
+#
+#   1) slot->prompt.clear() drops every entry of slot.prompt.checkpoints
+#      even though llama_state_seq_load_file() just loaded KV cells that
+#      are live for the restored prefix. The next continuation request
+#      therefore reaches the SWA gate (pos_min_thold = pos_next - n_swa -
+#      (has_new ? 0 : 1)) with a positive LCP, passes it, misses every
+#      checkpoint (it == rend()), and do_reset forces n_past = 0: the
+#      server physically re-prefills the whole prompt (history + G0 +
+#      suffix, 4360 tokens for the small fixture) while still returning
+#      HTTP 200, with prompt_n far above the suffix bound (suffix +
+#      batch_size + n_predict + 1 = 777). RED: prompt_n 4360 vs hot 257.
+#
+#   2) llama_state_seq_load_file() merges into whatever cells the slot
+#      still holds. The seam's cold probe re-populated the erased slot
+#      first (4104 tokens under a different decode batch shape), so the
+#      merged state is not bit-identical to the saved state and the two
+#      arms' logits drift even when their batch shapes match: RED
+#      (post-batch-shape-fix) max |d logprob| ~0.017 vs tolerance 0.001.
+#
+# Fix (SERVER_TASK_TYPE_SLOT_RESTORE):
+#   a) slot->mem.seq_rm(slot->id, -1, -1) before the state load, so the
+#      restored KV is exactly the saved state (bit-identical to the live
+#      cells the hot arm decodes from);
+#   b) after the restored tokens are installed, synthesize one
+#      common_prompt_checkpoint covering the restored prefix end so the
+#      continuation request takes the hot arm's suffix-only path:
+#        - n_tokens = restored prefix length (reuse up to the prefix end),
+#        - pos_min  = 0 (the PARTIAL_ONLY snapshot accounts for the whole
+#          prefix; also satisfies the search predicate's pos_min == 0 arm),
+#        - pos_max  = position after the last restored token (never
+#          rejected by the cur.pos_max > pos_next workaround guard, and
+#          [TAG_PROMPT_LOGITS] still forces the replay of one token when
+#          input == restored prompt),
+#        - data_tgt/data_dft/data_spec = PARTIAL_ONLY snapshots mirroring
+#          create_checkpoint() exactly; reloading them on use is
+#          idempotent with respect to the already-loaded cells.
+#
+# Post-fix (small variant): restored prompt_n 257 == hot 257,
+# cache_n 4103 == 4103, identical suffix batch shapes, identical logits
+# (max |d logprob| within determinism.logprob_abs_tol = 0.001).
+#
+# Base: 8c1c282ecb194e8f02613defcc4a07c22b6d1c08 (manifests/upstreams.json
+# pin). Apply with:
+#   git -C upstreams/strix-llama.cpp apply "$PWD/patches/strix-slot-restore-checkpoints.patch"
+
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index 589493b..5c3e490 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -2847,6 +2847,15 @@ private:
+                     std::string filename = task.slot_action.filename;
+                     std::string filepath = task.slot_action.filepath;
+ 
++                    // llama_state_seq_load_file() merges into whatever cells this slot
++                    // still holds (e.g. a cold probe that re-populated the erased slot).
++                    // Those surviving cells were computed under a different decode batch
++                    // shape, so the merged state is not bit-identical to the saved one
++                    // and hot/restored logits drift (|d logprob| ~0.017 vs the seam's
++                    // 0.001 tolerance) even when prompt_n parity holds. Start from an
++                    // empty sequence so the restored KV is exactly the saved state.
++                    slot->mem.seq_rm(slot->id, -1, -1);
++
+                     size_t nread = 0;
+                     try {
+                         size_t n_packed = 0;
+@@ -2873,6 +2882,29 @@ private:
+ 
+                         slot->prompt.clear();
+                         slot->prompt.tokens = std::move(restored);
++
++                        // prompt.clear() dropped every checkpoint even though the KV cells
++                        // loaded above are live for the restored prefix. Without a checkpoint
++                        // at the restored prefix end, the next continuation request misses
++                        // the checkpoint search (it == rend()), do_reset forces n_past = 0
++                        // and the server physically re-prefills the whole prompt while
++                        // still returning HTTP 200. Synthesize one checkpoint covering the
++                        // restored prefix so the continuation takes the same suffix-only
++                        // path as an uninterrupted (hot) slot.
++                        //  - pos_min = 0: the snapshot below accounts for the full prefix;
++                        //  - pos_max = position after the last restored token: reuse up to
++                        //    the prefix end; [TAG_PROMPT_LOGITS] still forces the replay of
++                        //    one token when the input equals the restored prompt exactly.
++                        auto & ckpt = slot->prompt.checkpoints.emplace_back();
++                        ckpt.id_task = task.id;
++                        ckpt.update_pos(slot->prompt.n_tokens(), 0, slot->prompt.tokens.pos_next());
++                        ckpt.update_tgt(ctx_tgt, slot->id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++                        ckpt.update_dft(ctx_dft, slot->id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++                        // stash the draft's speculative state with the checkpoint
++                        common_speculative_get_state(spec.get(), slot->id, ckpt.data_spec);
++
++                        SLT_TRC(*slot, "rebuilt context checkpoint after restore (pos_min = %d, pos_max = %d, n_tokens = %" PRId64 ", size = %.3f MiB)\n",
++                                ckpt.pos_min, ckpt.pos_max, ckpt.n_tokens, (float) ckpt.size() / 1024 / 1024);
+                     } catch (const std::exception & err) {
+                         slot->prompt_clear();
+                         send_error(task, std::string("Unable to restore slot: ") + err.what(), ERROR_TYPE_INVALID_REQUEST);

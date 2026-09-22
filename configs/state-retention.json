@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "hot_idle_grace_seconds": 180,
+  "warm_nvme": {
+    "preferred_retention_seconds": 3600,
+    "max_size_bytes": 512000000000
+  },
+  "cold_nvme": {
+    "preferred_retention_seconds": 86400,
+    "max_size_bytes": 1000000000000
+  },
+  "prefix_cache": {
+    "preferred_retention_seconds": null,
+    "eviction": "LRU",
+    "max_size_bytes": 500000000000
+  },
+  "quick_reactivation_window_seconds": 30
+}

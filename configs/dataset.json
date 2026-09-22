@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "traces": {
+    "sources": {
+      "claude": {
+        "root": "~/.claude/projects",
+        "transcript_glob": "**/*.jsonl",
+        "format": "jsonl",
+        "session_layout": "one file per session under munged-cwd directory; nested files are subagent/sidechain sessions"
+      },
+      "codex": {
+        "root": "~/.codex/sessions",
+        "transcript_glob": "**/*.jsonl",
+        "format": "jsonl",
+        "session_layout": "one file per session under YYYY/MM/DD directories; first record is session_meta"
+      },
+      "pi": {
+        "root": "~/.pi/agent/sessions",
+        "transcript_glob": "**/*.jsonl",
+        "format": "jsonl",
+        "session_layout": "one file per session under munged-cwd directory; entries chained by parentId"
+      },
+      "omp": {
+        "root": "~/.omp/agent/sessions",
+        "transcript_glob": "*/*.jsonl",
+        "format": "jsonl",
+        "session_layout": "one file per session under munged-cwd directory; pi-style entries; sibling -git dirs hold subagent sessions"
+      }
+    },
+    "extra_adapters_needed": {
+      "opencode": {
+        "root": "~/.local/share/opencode",
+        "format": "sqlite",
+        "db": "opencode.db",
+        "status": "discovered; not one of the four mandatory parsers; requires a SQLite adapter before counting as supported"
+      }
+    },
+    "discovery": {
+      "max_home_crawl": false,
+      "note": "Roots are pinned above; never walk the whole home directory."
+    }
+  },
+  "episode": {
+    "max_bounded_output_chars": 8192,
+    "downweight": {
+      "spam_tool_names": ["grep", "glob", "ls", "find", "read", "bash:build", "bash:install"],
+      "path_suffixes": [".lock", ".sum", "-lock.json", ".min.js", ".bundle.js", ".map", ".svg", ".ico", ".woff", ".woff2"],
+      "spam_weight": 0.25
+    },
+    "verification_tool_patterns": ["test", "pytest", "vitest", "jest", "cargo test", "go test", "make", "build", "lint", "ruff", "mypy", "tsc", "check"],
+    "recovery_window_events": 12
+  },
+  "task_identity": {
+    "issue_ref_pattern": "\\b[A-Z][A-Z0-9]{1,14}-\\d{1,7}\\b|\\b(?:issue|ticket|bug)\\s*#?\\d{1,6}\\b|\\bGH-\\d{1,6}\\b",
+    "plain_issue_hash_pattern": "#\\d{1,6}\\b",
+    "cross_harness_requires_explicit_linkage": true,
+    "ambiguous_group_policy": "quarantine",
+    "dedup_by_prompt_content_hash": true
+  },
+  "partition": {
+    "weights": {
+      "pruning": 0.35,
+      "quant": 0.20,
+      "recovery": 0.20,
+      "validation": 0.10,
+      "golden": 0.10,
+      "torture": 0.05
+    },
+    "golden_min_tasks": 50,
+    "golden_max_tasks": 200,
+    "golden_eligibility_only": true,
+    "salt": "mimo-halo-trace-split-v1",
+    "frozen_assignments_immutable": true,
+    "golden_reservation_independent_of_eligibility": true,
+    "freeze_requires_reserved_and_eligible": true
+  },
+  "golden_required_fields": [
+    "task_id",
+    "repo_identifier",
+    "starting_revision",
+    "task_prompt",
+    "test_oracle"
+  ]
+}

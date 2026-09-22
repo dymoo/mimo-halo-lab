@@ -42,3 +42,10 @@ venv/
 
 # OS noise
 .DS_Store
+
+# Halogen archaeology: regenerable fixture objects + large local analysis dumps.
+# Fixture generators and ground_truth.json are tracked; binaries regenerate via
+# research/halogen/tools/tests/make_fixtures.py. Compact summaries are tracked;
+# raw extraction dumps stay on the workstation.
+research/halogen/tools/tests/fixtures/*.o
+/research/halogen/results/

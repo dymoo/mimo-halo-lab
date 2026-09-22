@@ -1,0 +1,160 @@
+{
+  "schema_version": "1.0",
+  "product": {
+    "name": "halogen-flash-server",
+    "trade_name": "halogen",
+    "repository": "https://github.com/peonist-ai/halogen-flash-server",
+    "publisher": "Peonist, LLC",
+    "description": "Qwen3.8-Flash-Next inference runtime for AMD Strix Halo (gfx1151), closed source, shipped as a container image"
+  },
+  "identity_evidence": [
+    {
+      "source": "GitHub repository description",
+      "quote": "The fastest way to run Qwen3.8-Flash-Next on Strix Halo (gfx1151)",
+      "url": "https://github.com/peonist-ai/halogen-flash-server"
+    },
+    {
+      "source": "README.md at tag v0.13.2, opening line",
+      "quote": "halogen™ is the fastest way to run Qwen3.8-Flash-Next on AMD Strix Halo, and it does not get there by spending fewer bits.",
+      "url": "https://github.com/peonist-ai/halogen-flash-server/blob/v0.13.2/README.md"
+    },
+    {
+      "source": "README.md at tag v0.13.2",
+      "quote": "Every kernel is written for this one GPU and this one model family. No general-purpose runtime, no portability layer, no fallback path.",
+      "url": "https://github.com/peonist-ai/halogen-flash-server/blob/v0.13.2/README.md"
+    },
+    {
+      "source": "OCI image label org.opencontainers.image.description (inside the pinned artifact itself)",
+      "quote": "Qwen3.8-Flash-Next inference server for AMD Strix Halo (gfx1151)"
+    },
+    {
+      "source": "LICENSE.md (EULA), section 3 'On reverse engineering'",
+      "quote": "the engine ships as a compiled binary containing gfx1151 device code, and anyone with a disassembler can read those kernels",
+      "url": "https://github.com/peonist-ai/halogen-flash-server/blob/v0.13.2/LICENSE.md"
+    },
+    {
+      "source": "Third-party corroboration: DeepWiki article on the repository",
+      "quote": "halogen-flash-server is a closed-source, hardware-specific inference engine optimized exclusively for the Qwen3.8-Flash-Next model family running on AMD Strix Halo (gfx1151) silicon ... Shipped entirely as a container image",
+      "url": "https://deepwiki.com/peonist-ai/halogen-flash-server"
+    },
+    {
+      "source": "Third-party corroboration: r/LocalLLaMA discussion",
+      "quote": "there's also a closed-source solution called Halogen",
+      "url": "https://www.reddit.com/r/LocalLLaMA/comments/1weobt6/qwen38_flash_next_now_at_12k_ts_prefill_on_strix/"
+    }
+  ],
+  "ambiguity_report": {
+    "verdict": "no_blocking_ambiguity",
+    "note": "Several unrelated products share the name 'Halogen', but only one matches the specified identity criteria (Qwen-Flash-Next inference runtime, gfx1151 / 128 GB Strix Halo, published performance claims): peonist-ai/halogen-flash-server. It is the product pinned here.",
+    "same_name_candidates_rejected": [
+      {
+        "candidate": "Halogen Software (talent-management SaaS, Canada, later part of Saba Software)",
+        "evidence": "Wikipedia/LinkedIn: workforce performance-management software company; no inference runtime, no GPU code",
+        "url": "https://en.wikipedia.org/wiki/Halogen_Software"
+      },
+      {
+        "candidate": "RANE Halogen (control software for RANE DSP audio devices)",
+        "evidence": "ranecommercial.com: 'The Halogen software manages global tasks such as discovering, connecting to, and applying configurations to RANE DSP devices'",
+        "url": "https://www.ranecommercial.com/hal_software"
+      }
+    ]
+  },
+  "version": "0.13.2",
+  "version_evidence": {
+    "oci_label": "org.opencontainers.image.version = 0.13.2",
+    "git_tag": {
+      "tag": "v0.13.2",
+      "type": "annotated",
+      "tagger": "wenis",
+      "tag_date": "2026-09-22T11:38:18Z",
+      "target_commit": "4f707875cbefee9efb4ce0870a10d62afbe6c511",
+      "commit_date": "2026-09-22T07:49:29Z"
+    },
+    "readme_quickstart_at_tag": "ghcr.io/peonist-ai/halogen-flash-server:0.13.2",
+    "third_party_notices_at_tag": "Image: ghcr.io/peonist-ai/halogen-flash-server:0.13.2 / ROCm: 7.14.0",
+    "note": "Image label org.opencontainers.image.revision = a39127e31db7 does NOT resolve in the public repository (GitHub API: 'No commit found for SHA: a39127e31db7', HTTP 422). Unrecoverable; recorded as-is. The public v0.13.2 tag target is the commit above."
+  },
+  "release_url": {
+    "project_site": "https://github.com/peonist-ai/halogen-flash-server",
+    "tag_page": "https://github.com/peonist-ai/halogen-flash-server/releases/tag/v0.13.2",
+    "distribution_channel": "ghcr.io/peonist-ai/halogen-flash-server:0.13.2",
+    "registry_manifest_url": "https://ghcr.io/v2/peonist-ai/halogen-flash-server/manifests/0.13.2",
+    "channel_note": "The engine binary is published ONLY inside the OCI container image (LICENSE.md: 'the container image published by us containing the halogen inference engine binary, its serving front-end, and supporting scripts'). GitHub Releases API returns an empty list (no release assets); GitHub hosts the documentation/scripts source at tag v0.13.2."
+  },
+  "publisher": "Peonist, LLC",
+  "release_date": {
+    "image_created": "2026-09-22T05:24:34.478638025Z",
+    "git_tag": "2026-09-22T11:38:18Z",
+    "acquisition_date": "2026-09-22"
+  },
+  "license": {
+    "name": "halogen End User License Agreement, Version 0.1 (effective 2026-08-25); OCI label identifier LicenseRef-Peonist-EULA",
+    "where_stated": [
+      "LICENSE.md at repository root (title: 'halogen — End User License Agreement', 'Version 0.1 · Effective 25 August 2026', 'Copyright © 2026 Peonist, LLC')",
+      "README.md at tag v0.13.2, section 'License': 'The engine is distributed under the terms in LICENSE.md.'",
+      "OCI image label org.opencontainers.image.licenses = LicenseRef-Peonist-EULA (inside the pinned artifact)",
+      "GitHub repository metadata: License: Other"
+    ],
+    "third_party": "THIRD-PARTY-NOTICES.md (repository root and inside the image) covers redistributed ROCm runtime/libraries, Python interpreter and Python packages, each under its own license; third-party license governs on conflict.",
+    "relevant_terms": "EULA section 3: reverse engineering is expressly not prohibited; the publisher asks that derived source or kernels not be redistributed as one's own work and states 'Interoperability and security research are welcome.' Section 4 expressly permits benchmarking and publication. Model weights are NOT included and are licensed separately by their authors."
+  },
+  "packaging_format": "OCI image (application/vnd.oci.image.manifest.v1+json), saved with `docker save` as an OCI-layout POSIX tar archive (index.json, manifest.json, blobs/sha256/*); platform linux/amd64; base image python:3.12-slim-trixie; built with buildah 1.43.2",
+  "archive": {
+    "path": "$MIMO_LAB/reference/halogen/halogen-flash-server-0.13.2-oci.tar",
+    "sha256": "0586f593e6ac34e93bc2274252df3c51fbfbbef1908f8f035bb8d764e6bb0192",
+    "size_bytes": 3567376896,
+    "file_type": "POSIX tar archive (OCI layout)"
+  },
+  "image_identity": {
+    "registry_manifest_digest": "sha256:fd071dfdebe618256d0653515b3c59c27302d5c1a8b74b9c0133fbe7740afd9e",
+    "config_digest": "sha256:c49b9181f60a81380c5db5ecf36d9fc87b3cd367cb7d1801795ba47b36d258dd",
+    "config_digest_verified": "identical registry and local config blob digest c49b9181f60a81380c5db5ecf36d9fc87b3cd367cb7d1801795ba47b36d258dd",
+    "local_manifest_digest": "sha256:9f992494d52f07ce3f0ec45e08e803d0954cd06e46244552af8b2300338e752f",
+    "layer_count": 17,
+    "uncompressed_size_bytes": 3550835351,
+    "architecture": "amd64",
+    "os": "linux"
+  },
+  "integrity_verification": {
+    "archive_sha256_computed": "0586f593e6ac34e93bc2274252df3c51fbfbbef1908f8f035bb8d764e6bb0192",
+    "registry_manifest_digest_via_header": "sha256:fd071dfdebe618256d0653515b3c59c27302d5c1a8b74b9c0133fbe7740afd9e (Docker-Content-Digest, matches docker pull output)",
+    "local_blobs_rehashed": "all36 blobs: sha256(content) == blob name,0 mismatches",
+    "spot_checks_registry_to_local": [
+      "gz layer sha256:9643fad16e85... | gzip -dc | sha256 = sha256:a6dc765193a5... == local blob (layer1)",
+      "gz layer sha256:66ca5f2ba03a... | gzip -dc | sha256 = sha256:c321a426ca69... == local blob (layer4)"
+    ],
+    "payload_layer_mapping": {
+      "/usr/local/bin/flash_serve": "blobs/sha256/c035cbc72b75c0dc004599ecf0993676fee610fab97f0494665c6e11b1f5252c (single writer)",
+      "/usr/local/bin/halogen-tools": "blobs/sha256/f4ef0f45742ea6d9c8ee43b9ee05cf392438264218cf342c7366c0fc1b84372e (single writer)",
+      "/usr/local/bin/entrypoint.sh": "last writer blobs/sha256/5b37a02a00598b8fd67668d2df8ca1e1d2fac9ce0548cbddc1df181019a059d9 (final of2 writers)",
+      "/halogen/tools/serve_api.py": "blobs/sha256/0806e2b0e27de90238fd42a78e9edece54b6d9a358e8b33499668b74710b44ba (single writer)",
+      "/opt/halogen/flash-tune.plan": "blobs/sha256/f6bc69e8c91b30236ba5d412309fd08d79554b5b49dc20671ff6658fc90db9cb (single writer)"
+    }
+  },
+  "acquisition": {
+    "date": "2026-09-22",
+    "exact_commands": [
+      "docker pull --platform linux/amd64 ghcr.io/peonist-ai/halogen-flash-server:0.13.2",
+      "docker save -o halogen-flash-server-0.13.2-oci.tar ghcr.io/peonist-ai/halogen-flash-server:0.13.2",
+      "shasum -a 256 halogen-flash-server-0.13.2-oci.tar",
+      "tar -xf halogen-flash-server-0.13.2-oci.tar -C unpack"
+    ],
+    "toolchain": "Docker Engine/CLI29.4.0 (daemon on this host), macOS bsdtar, /usr/bin/file, /usr/bin/shasum (LibreSSL sha256), jq",
+    "storage": "$MIMO_LAB/reference/halogen/ (binary archive never committed to Git)"
+  },
+  "inner_files": [
+    {"path": "/usr/local/bin/flash_serve", "size_bytes": 13510488, "sha256": "c610eb79bf00e8a97b742b5fb8494ed0a7946e1baf2ae4ef2f2c7a138f30e5be", "file_type": "ELF 64-bit LSB pie executable, x86-64, dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, stripped", "role": "inference engine binary (contains gfx1151 device code per LICENSE.md)"},
+    {"path": "/usr/local/bin/halogen-tools", "size_bytes": 13416136, "sha256": "1ad31d1fd9f3cec1a60c3c11f613099125bdbf64c28182d93aac8d3dc81995dc", "file_type": "ELF 64-bit LSB pie executable, x86-64, dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, stripped", "role": "checkpoint tools binary (verify/inspect/ppl/niah)"},
+    {"path": "/usr/local/bin/entrypoint.sh", "size_bytes": 77594, "sha256": "460bd61348c1d25e6ec4f6c817f3516742fd906e71859f4aed15f3908548f019", "file_type": "Bourne-Again shell script, UTF-8 text", "role": "container entrypoint / mode dispatch"},
+    {"path": "/usr/local/bin/halogen-healthcheck", "size_bytes": 2302, "sha256": "582537ecb6149e02accdea739aac36f443728535996846cec221ee11a8fa96e5", "file_type": "Bourne-Again shell script, ASCII text", "role": "image HEALTHCHECK probe"},
+    {"path": "/halogen/tools/serve_api.py", "size_bytes": 264626, "sha256": "6f68be846cf5b62ec7e87bde9c4560d06e507d584978879224c79538b86fca6d", "file_type": "Python script, UTF-8 text", "role": "OpenAI-compatible serving front end"},
+    {"path": "/halogen/tools/tool_parse.py", "size_bytes": 24169, "sha256": "e2359e39e7dbfab90cc36a3dd7839d520eb86d5be45b18196ebd3d4e6d7cec12", "file_type": "Python script, UTF-8 text", "role": "tool-call wire-format helper"},
+    {"path": "/halogen/tools/bench-serving.py", "size_bytes": 18431, "sha256": "7edd38e6ce04854298cf7584ecac13d47afeb96c93e4c85fe113c14094944f83", "file_type": "Python script, UTF-8 text", "role": "serving benchmark client"},
+    {"path": "/halogen/tools/halogen_tools.py", "size_bytes": 12012, "sha256": "4155711c1ef9128f2f28b842e6a0e0662f6553bc571595606343db8ff02ada30", "file_type": "Python script, ASCII text", "role": "checkpoint tool driver"},
+    {"path": "/halogen/tools/halogen-bench.py", "size_bytes": 10165, "sha256": "0587690c50cfa6769b54d67c7553ba8aa3ec861e677082590d322b0b2f0f846f", "file_type": "Python script, UTF-8 text", "role": "in-image benchmark harness"},
+    {"path": "/halogen/tools/eval-prompts.json", "size_bytes": 1384, "sha256": "23df9feb5ec2b343f675bb08dc6c0c2286e17dd6d73acf4e7d363d0c0c49922b", "file_type": "JSON data", "role": "benchmark prompt set"},
+    {"path": "/opt/halogen/flash-tune.plan", "size_bytes": 30644, "sha256": "a053ca07a4de9642934dcbff91addf5dd457edb06169dc173ae354abe56754d1", "file_type": "data (binary tuning plan)", "role": "baked matmul tuning plan (HALOGEN_MATMUL_TUNING_FILE)"}
+  ],
+  "inner_files_scope": "Complete inventory of halogen's own payload in the image (every file under /usr/local/bin that halogen ships, /halogen/tools/*, /opt/halogen/*). Third-party contents (Debian base, Python3.12, ROCm7.14.0 user-mode stack) are covered by THIRD-PARTY-NOTICES.md and are out of scope for this pin.",
+  "clean_room_statement": "This pin records observations, hashes, ABI-level metadata and short evidence excerpts only. No Halogen source code or proprietary kernel is reproduced or redistributed; the archive stays outside Git under $MIMO_LAB/reference/halogen/. Analysis of the binary is performed only as permitted by LICENSE.md section3 (reverse engineering not prohibited; interoperability/security research welcome; derived source or kernels must not be redistributed as our own work)."
+}

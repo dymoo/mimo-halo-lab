@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/dymoo/mimo-halo-lab/main/schemas/episode.schema.json",
+  "title": "MiMo Halo normalized trace episode set",
+  "description": "Consumer contract for normalized harness traces. One document per parsed session. Raw provider payloads are never included; text stored in private outputs is credential-redacted and not claimed to be fully anonymized. Events use omit-null encoding: absent facts are keys with no stored value.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "kind",
+    "session",
+    "events",
+    "episodes"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "kind": {
+      "type": "string",
+      "const": "mimo-halo-normalized-trace"
+    },
+    "session": {
+      "type": "object",
+      "required": [
+        "source",
+        "session_id",
+        "source_path_sha256",
+        "event_count",
+        "tool_call_count",
+        "tool_result_count",
+        "unmatched_tool_calls",
+        "unmatched_tool_results",
+        "has_branching",
+        "parent_session_ids",
+        "models"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "claude",
+            "codex",
+            "pi",
+            "omp"
+          ]
+        },
+        "session_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_path_sha256": {
+          "type": "string",
+          "description": "sha256 of the absolute source path string; never the path itself"
+        },
+        "content_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "sha256 of raw source bytes"
+        },
+        "cwd_sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "repo_key": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "sha256 of resolved working directory"
+        },
+        "repo_identifier": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "remote origin URL when the harness records one"
+        },
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_revision": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "revision hash captured at session start, when the harness records it"
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ended_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parent_session_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "explicit resume/fork lineage recorded by the harness"
+        },
+        "has_branching": {
+          "type": "boolean",
+          "description": "in-file parent tree has forks (retry/branch points)"
+        },
+        "sidechain_sessions": {
+          "type": "integer"
+        },
+        "event_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_call_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_result_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unmatched_tool_calls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unmatched_tool_results": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "redaction_hits": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "seq",
+          "type",
+          "source_type",
+          "sidechain"
+        ],
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant",
+              "tool_call",
+              "tool_result",
+              "reasoning",
+              "system",
+              "custom",
+              "meta"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "absent when the harness did not record one"
+          },
+          "text": {
+            "type": "string",
+            "description": "credential-redacted bounded text; only present with --include-text"
+          },
+          "text_sha256": {
+            "type": "string"
+          },
+          "text_chars": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tool_call_id": {
+            "type": "string"
+          },
+          "tool_name": {
+            "type": "string"
+          },
+          "arguments_sha256": {
+            "type": "string"
+          },
+          "arguments_chars": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "result_is_error": {
+            "type": "boolean"
+          },
+          "verification_hint": {
+            "type": "boolean",
+            "description": "tool call likely runs tests/build/lint (command-prefix inference, no content retained)"
+          },
+          "spam_hint": {
+            "type": "boolean",
+            "description": "cheap exploration or build/install call"
+          },
+          "parent_event_id": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "usage": {
+            "type": "object"
+          },
+          "sidechain": {
+            "type": "boolean"
+          },
+          "source_type": {
+            "type": "string",
+            "description": "original harness event key, e.g. claude 'assistant:text', codex 'function_call', pi/omp 'message:toolCall'"
+          },
+          "correlated": {
+            "type": "boolean",
+            "description": "tool_call/tool_result matched to its counterpart; absent for non-tool events"
+          }
+        }
+      }
+    },
+    "episodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "episode_id",
+          "turn_index",
+          "sidechain",
+          "event_seq",
+          "tool_calls",
+          "has_decision",
+          "verification_events",
+          "recovered",
+          "downweighted_events",
+          "capabilities",
+          "weight"
+        ],
+        "properties": {
+          "episode_id": {
+            "type": "string"
+          },
+          "turn_index": {
+            "type": "integer"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sidechain": {
+            "type": "boolean"
+          },
+          "event_seq": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 2
+          },
+          "tool_calls": {
+            "type": "integer"
+          },
+          "has_decision": {
+            "type": "boolean",
+            "description": "assistant text/thinking precedes tool use in this turn"
+          },
+          "verification_events": {
+            "type": "integer"
+          },
+          "recovered": {
+            "type": "boolean",
+            "description": "error tool result followed by a successful result/verification within the recovery window"
+          },
+          "downweighted_events": {
+            "type": "integer",
+            "description": "events reduced by the downweight classes in $defs/downweight_class (extraction rules in docs/datasets.md)"
+          },
+          "downweight_classes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/downweight_class"
+            },
+            "description": "Downweight classes observed in this episode; their count equals downweighted_events."
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "repo_exploration",
+                "planning",
+                "architecture",
+                "implementation",
+                "debugging",
+                "compiler_interpretation",
+                "test_interpretation",
+                "tool_use",
+                "shell",
+                "git",
+                "refactoring",
+                "code_review",
+                "verification",
+                "recovery",
+                "long_context",
+                "dependency_reasoning",
+                "concurrency",
+                "database",
+                "frontend",
+                "backend",
+                "systems",
+                "build_tooling"
+              ]
+            },
+            "minItems": 1,
+            "description": "Multi-label capability tags from the closed 22-tag contract taxonomy (docs/datasets.md); exactly one of them is the primary tag, chosen by the primary-tag rule."
+          },
+          "primary_capability": {
+            "type": "string",
+            "enum": [
+              "repo_exploration",
+              "planning",
+              "architecture",
+              "implementation",
+              "debugging",
+              "compiler_interpretation",
+              "test_interpretation",
+              "tool_use",
+              "shell",
+              "git",
+              "refactoring",
+              "code_review",
+              "verification",
+              "recovery",
+              "long_context",
+              "dependency_reasoning",
+              "concurrency",
+              "database",
+              "frontend",
+              "backend",
+              "systems",
+              "build_tooling"
+            ],
+            "description": "The single primary capability tag per the primary-tag rule in docs/datasets.md; omitted when no capability was inferred."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "typescript",
+                "javascript",
+                "python",
+                "rust",
+                "go",
+                "cpp",
+                "sql",
+                "shell",
+                "other"
+              ]
+            },
+            "description": "Languages that are the subject of this episode's decision/action (closed 9-language set); omitted when the episode touches no code."
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "D0",
+              "D1",
+              "D2",
+              "D3",
+              "D4"
+            ],
+            "description": "Automatic Score level (D0..D4): a categorical label for calibration weighting and evaluation slicing, never numerically interpolated or averaged; omitted when unlabeled."
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "downweight_class": {
+      "type": "string",
+      "enum": [
+        "lockfile",
+        "enormous_grep_output",
+        "repeated_build_spam",
+        "generated_bundle",
+        "duplicate_file_content"
+      ],
+      "description": "Downweight extraction classes. Counts surface as episode.downweighted_events; extraction rules live in docs/datasets.md (Semantic episode contract)."
+    }
+  }
+}
