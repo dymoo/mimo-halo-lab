@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 from ..pruning.maps import PruneMapError, build_prune_map, load_inventory, load_selection_file
-from .candidate import build_candidate
+from .candidate import _validate_expert_order, build_candidate
 from .errors import BuildError
 
 
@@ -132,7 +132,35 @@ def _publish_map(map_path: str, text: str) -> None:
             )
 
 
-def _ensure_prune_map(args) -> str:
+def _load_expert_order(path: str) -> dict[int, list[int]]:
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise BuildError(f"expert_order has duplicate JSON layer key {key!r}")
+            result[key] = value
+        return result
+
+    order = json.loads(
+        Path(path).read_text(encoding="utf-8"), object_pairs_hook=unique_keys
+    )
+    if not isinstance(order, dict):
+        raise BuildError("expert_order must be a JSON object keyed by layer")
+    converted = {}
+    for key, value in order.items():
+        if not key.isdecimal() or not key.isascii():
+            raise BuildError(f"expert_order layer key {key!r} must be a decimal string")
+        try:
+            layer = int(key)
+        except ValueError as exc:
+            raise BuildError(f"expert_order layer key {key!r} is too large") from exc
+        if layer in converted:
+            raise BuildError(f"expert_order layer keys collide at layer {layer}")
+        converted[layer] = value
+    return converted
+
+
+def _ensure_prune_map(args, expert_order: dict | None) -> str:
     """Use --prune-map as given, or build one from --selection (published
     exclusively next to --out so the output directory stays absent-or-empty)."""
     inventory = load_inventory(args.inventory)
@@ -141,6 +169,9 @@ def _ensure_prune_map(args) -> str:
         return args.prune_map
     selection, provenance = load_selection_file(
         args.selection, inventory["architecture"]
+    )
+    _validate_expert_order(
+        expert_order, selection, inventory["architecture"]["original_experts_per_layer"]
     )
     document = build_prune_map(
         inventory, selection, "external_selection", provenance, args.inventory
@@ -182,7 +213,8 @@ def _build_parser() -> argparse.ArgumentParser:
                         metavar="TEXT",
                         help="source digest-basis line (repeatable; default: config)")
     parser.add_argument("--expert-order", default=None,
-                        help="JSON {layer: [original ids, lowest salience first]}")
+                        help="JSON {decimal layer string: [retained original IDs in precision order]}; "
+                             "required only when selected recipe mixes native and Q3 expert instances")
     parser.add_argument("--kind", default="pruned",
                         choices=("pruned", "quantized"),
                         help="artifact stage (quantized requires --parent)")
@@ -205,10 +237,27 @@ def main(argv=None) -> int:
         _preflight_paths(args)  # before ANY file is written
         cfg = _load_sweep_config(args.config)
         recipe = _recipe_for(cfg, args.candidate_id)
-        prune_map_path = _ensure_prune_map(args)
-        expert_order = None
-        if args.expert_order:
-            expert_order = json.loads(Path(args.expert_order).read_text(encoding="utf-8"))
+        precision = recipe.get("expert_precision")
+        if not isinstance(precision, dict):
+            raise BuildError("recipe expert_precision must be an object")
+        q3_instances = precision.get("q3_instances")
+        if (
+            not isinstance(q3_instances, int)
+            or isinstance(q3_instances, bool)
+            or q3_instances < 0
+        ):
+            raise BuildError("recipe expert_precision.q3_instances must be a non-negative int")
+        retained_total = recipe.get("retained_total_experts")
+        if (
+            not isinstance(retained_total, int)
+            or isinstance(retained_total, bool)
+            or retained_total <= 0
+        ):
+            raise BuildError("recipe retained_total_experts must be a positive int")
+        if 0 < q3_instances < retained_total and not args.expert_order:
+            raise BuildError("expert_order is required for a mixed native/Q3 recipe")
+        expert_order = _load_expert_order(args.expert_order) if args.expert_order else None
+        prune_map_path = _ensure_prune_map(args, expert_order)
         result = build_candidate(
             inventory_path=args.inventory,
             prune_map_path=prune_map_path,

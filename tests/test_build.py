@@ -67,9 +67,10 @@ HIDDEN = 128
 EXPERTS = 8
 MOE_LAYERS = (1, 2)
 RETAINED = {1: [6, 4, 2, 0, 1, 3], 2: [7, 5, 1, 3, 0, 2]}
-# Default dispatch order is descending original expert id (byte totals are
-# order-independent; the basis is recorded in the quant assignment).
-Q3_OLD_IDS = {1: [6, 4, 3], 2: [7, 5]}
+# Explicit caller-provided precision order, independent of selection's
+# original-ID-to-new-ID mapping; the first per-layer entries receive Q3.
+EXPERT_ORDER = {1: [4, 3, 6, 0, 2, 1], 2: [5, 7, 3, 0, 1, 2]}
+Q3_OLD_IDS = {1: [4, 3, 6], 2: [5, 7]}
 INST_NATIVE = 26112   # 3 projections x (8192 B packed weight + 512 B scale)
 INST_Q3 = 19200       # 3 x (128*128*3/8 + (16384/128)*2) = 3 x 6400
 RESIDENT = 313664     # exact planned text payload (hand sum below)
@@ -243,9 +244,8 @@ def make_recipe() -> dict:
                 "extra_q3_per_layer": 3,
             },
             "assignment_rule": (
-                "fixture: Q3 goes to the highest original expert ids first "
-                "(deterministic placeholder; byte totals are order-independent "
-                "and the exact assignment is recorded per layer)"
+                "fixture: Q3 goes to the first experts in caller-supplied "
+                "ascending salience order (precision proxy, not measured sensitivity)"
             ),
         },
         "second_gen_applied": [
@@ -293,6 +293,37 @@ def make_native_recipe() -> dict:
     recipe["second_gen_applied"] = []
     recipe["planned_resident_weight_bytes"] = FLOOR
     recipe["pure_mxfp4_floor_bytes"] = FLOOR
+    return recipe
+
+def make_all_q3_recipe() -> dict:
+    """All retained experts use Q3; relative order cannot change dispatch."""
+    recipe = make_recipe()
+    recipe["candidate_id"] = "fixture-reap25-all-q3"
+    recipe["allocation_table"] = [
+        row for row in recipe["allocation_table"] if row["class"] != "experts_native"
+    ]
+    q3_row = next(row for row in recipe["allocation_table"]
+                  if row["class"] == "experts_second_gen")
+    q3_row["units"] = 12
+    q3_row["class_bytes"] = 12 * INST_Q3
+    recipe["expert_precision"] = {
+        "native_mxfp4_instances": 0,
+        "q3_instances": 12,
+        "instance_bytes_native": INST_NATIVE,
+        "instance_bytes_q3": INST_Q3,
+        "q3_percent": 100.0,
+        "per_layer_distribution": {
+            "base_q3_per_layer": 6,
+            "extra_q3_layers": [],
+            "extra_q3_per_layer": 0,
+        },
+        "assignment_rule": "all retained experts Q3; salience order is irrelevant",
+    }
+    ledger = recipe["second_gen_applied"][0]
+    ledger["scope"] = "all 12 retained expert instances"
+    ledger["bytes_before"] = 12 * INST_NATIVE
+    ledger["bytes_after"] = 12 * INST_Q3
+    recipe["planned_resident_weight_bytes"] = RESIDENT + 7 * (INST_Q3 - INST_NATIVE)
     return recipe
 
 
@@ -619,6 +650,7 @@ def build_kwargs(fx: dict, out: Path, **over) -> dict:
         dataset_hashes=[DATASET_HASH],
         digest_basis=DIGEST_BASIS,
         calibration_config_path=fx["calibration"],
+        expert_order=EXPERT_ORDER,
     )
     kwargs.update(over)
     return kwargs
@@ -1126,7 +1158,7 @@ class EndToEndBuildTest(unittest.TestCase):
         # Output uses new ids; dispatch records the original ids it consumed.
         qa = json.loads((self.out / "quant_assignment.json").read_text())
         self.assertEqual(qa["expert_dispatch"]["q3_old_ids_by_layer"],
-                         {"1": [6, 4, 3], "2": [7, 5]})
+                         {"1": Q3_OLD_IDS[1], "2": Q3_OLD_IDS[2]})
         expert_map = json.loads((self.out / "expert_map.json").read_text())
         self.assertEqual(
             {e["layer"]: e["retained"] for e in expert_map["layers"]},
@@ -1301,6 +1333,38 @@ class RefusalTest(unittest.TestCase):
                 Path(out).exists(),
                 f"refused build left output behind at {out}",
             )
+
+    def test_mixed_build_requires_complete_permutation_before_writing(self):
+        fx = self.fresh()
+        self.assert_refused(
+            build_kwargs(fx, self.base / "out-no-order", expert_order=None),
+            BuildError,
+            "expert_order is required for.*Q3",
+        )
+        self.assert_refused(
+            build_kwargs(fx, self.base / "out-incomplete", expert_order={1: EXPERT_ORDER[1]}),
+            BuildError,
+            "missing MoE layer 2",
+        )
+        self.assert_refused(
+            build_kwargs(
+                fx, self.base / "out-duplicate",
+                expert_order={1: [4, 4, 6, 0, 2, 1], 2: EXPERT_ORDER[2]},
+            ),
+            BuildError,
+            "permutation",
+        )
+
+    def test_direct_api_rejects_string_layer_keys_before_writing(self):
+        fx = self.fresh()
+        self.assert_refused(
+            build_kwargs(
+                fx, self.base / "out-string-keys",
+                expert_order={str(layer): ids for layer, ids in EXPERT_ORDER.items()},
+            ),
+            BuildError,
+            "layer key.*must be an integer",
+        )
 
     # -- refusal: input paths outside the verified source root ------------
     def test_refusal_input_path_outside_verified_source_root(self):
@@ -1548,6 +1612,32 @@ class AllNativeBuildTest(unittest.TestCase):
                 build_candidate(**build_kwargs(self.fx, self.base / "out-none"))
         self.assertFalse((self.base / "out-none").exists())
 
+class AllQ3BuildTest(unittest.TestCase):
+    def test_direct_build_needs_no_order_and_records_all_retained_ids(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            fx = make_fixture(base)
+            out = base / "out-q3"
+            result = build_candidate(**build_kwargs(
+                fx, out, recipe=make_all_q3_recipe(), expert_order=None
+            ))
+            self.assertEqual(result["verify"]["status"], "verified")
+            dispatch = json.loads((out / "build_report.json").read_text())["expert_dispatch"]
+            self.assertEqual(dispatch["q3_old_ids_by_layer"],
+                             {str(layer): sorted(ids) for layer, ids in RETAINED.items()})
+            self.assertNotIn("REAP salience", dispatch["order_basis"])
+
+    def test_supplied_all_q3_order_is_preserved(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            fx = make_fixture(base)
+            out = base / "out-q3-supplied"
+            build_candidate(**build_kwargs(fx, out, recipe=make_all_q3_recipe()))
+            dispatch = json.loads((out / "quant_assignment.json").read_text())["expert_dispatch"]
+            self.assertEqual(dispatch["q3_old_ids_by_layer"],
+                             {str(layer): ids for layer, ids in EXPERT_ORDER.items()})
+            self.assertIn("caller-supplied order", dispatch["order_basis"])
+
 
 class CliBuildTest(unittest.TestCase):
     """python -m mimo_halo.build: one command, selection -> verified artifact."""
@@ -1565,6 +1655,10 @@ class CliBuildTest(unittest.TestCase):
                 "source_weights": {"digest_basis": DIGEST_BASIS},
                 "candidates": [recipe],
             },
+        )
+        self.order = write_json(
+            self.base / "order.json",
+            {str(layer): ids for layer, ids in EXPERT_ORDER.items()},
         )
 
     def tearDown(self):
@@ -1585,6 +1679,7 @@ class CliBuildTest(unittest.TestCase):
             "--dataset", DATASET_HASH,
             "--calibration-config", str(self.fx["calibration"]),
         ]
+        argv.extend(["--expert-order", str(self.order)])
         for key, value in over.items():
             argv.extend([ "--" + key.replace("_", "-"), str(value) ])
         return argv
@@ -1613,6 +1708,124 @@ class CliBuildTest(unittest.TestCase):
             self.assertIn(name, os.listdir(self.base / "out-cli"))
         wcfg = json.loads((self.base / "out-cli" / "config.json").read_text())
         self.assertEqual(wcfg["n_routed_experts"], 6)
+        dispatch = json.loads(
+            (self.base / "out-cli" / "quant_assignment.json").read_text()
+        )["expert_dispatch"]
+        self.assertEqual(dispatch["q3_old_ids_by_layer"],
+                         {"1": Q3_OLD_IDS[1], "2": Q3_OLD_IDS[2]})
+
+    def test_cli_mixed_without_order_refuses_before_publishing_map(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        argv = self._argv("out-no-order")
+        del argv[argv.index("--expert-order"):argv.index("--expert-order") + 2]
+        source_before = self._tree_state(self.fx["root"])
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = build_main(argv)
+        self.assertEqual(code, 1)
+        self.assertIn("expert_order is required", err.getvalue())
+        self.assertFalse((self.base / "out-no-order").exists())
+        self.assertFalse((self.base / "out-no-order.prune_map.json").exists())
+        self.assertEqual(self._tree_state(self.fx["root"]), source_before)
+
+    def test_cli_malformed_order_refuses_before_publishing_map(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        malformed = {
+            "collision": {"1": EXPERT_ORDER[1], "01": EXPERT_ORDER[1],
+                          "2": EXPERT_ORDER[2]},
+            "invalid-layer": {"first": EXPERT_ORDER[1], "2": EXPERT_ORDER[2]},
+            "missing-layer": {"1": EXPERT_ORDER[1]},
+            "extra-layer": {"1": EXPERT_ORDER[1], "2": EXPERT_ORDER[2],
+                            "3": EXPERT_ORDER[1]},
+            "non-list": {"1": "4,3,6,0,2,1", "2": EXPERT_ORDER[2]},
+            "invalid-id": {"1": [4, 3, True, 0, 2, 1], "2": EXPERT_ORDER[2]},
+            "wrong-ids": {"1": [4, 3, 7, 0, 2, 1], "2": EXPERT_ORDER[2]},
+        }
+        source_before = self._tree_state(self.fx["root"])
+        for name, order in malformed.items():
+            with self.subTest(name=name):
+                write_json(self.order, order)
+                out = self.base / ("out-" + name)
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err):
+                    code = build_main(self._argv(str(out)))
+                self.assertEqual(code, 1, err.getvalue())
+                self.assertFalse(out.exists())
+                self.assertFalse(Path(str(out) + ".prune_map.json").exists())
+        self.assertEqual(self._tree_state(self.fx["root"]), source_before)
+
+    def test_cli_duplicate_raw_layer_key_refuses_before_publishing_map(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        self.order.write_text('{"1": [], "1": [], "2": []}')
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = build_main(self._argv("out-duplicate-json"))
+        self.assertEqual(code, 1)
+        self.assertIn("duplicate JSON layer key", err.getvalue())
+        self.assertFalse((self.base / "out-duplicate-json").exists())
+        self.assertFalse((self.base / "out-duplicate-json.prune_map.json").exists())
+
+    def test_cli_native_recipe_builds_without_order(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        cfg = json.loads(self.config.read_text())
+        cfg["candidates"].append(make_native_recipe())
+        write_json(self.config, cfg)
+        argv = self._argv("out-native")
+        argv[argv.index("fixture-reap25-mixed-q3")] = "fixture-reap25-all-native"
+        del argv[argv.index("--expert-order"):argv.index("--expert-order") + 2]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = build_main(argv)
+        self.assertEqual(code, 0, out.getvalue())
+        qa = json.loads((self.base / "out-native" / "quant_assignment.json").read_text())
+        self.assertEqual(qa["expert_dispatch"]["q3_old_ids_by_layer"],
+                         {"1": [], "2": []})
+
+    def test_cli_all_q3_builds_without_order(self):
+        from mimo_halo.build.__main__ import main as build_main
+        import contextlib
+        import io
+
+        cfg = json.loads(self.config.read_text())
+        cfg["candidates"].append(make_all_q3_recipe())
+        write_json(self.config, cfg)
+        argv = self._argv("out-all-q3")
+        argv[argv.index("fixture-reap25-mixed-q3")] = "fixture-reap25-all-q3"
+        del argv[argv.index("--expert-order"):argv.index("--expert-order") + 2]
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = build_main(argv)
+        self.assertEqual(code, 0, output.getvalue())
+        dispatch = json.loads(
+            (self.base / "out-all-q3" / "quant_assignment.json").read_text()
+        )["expert_dispatch"]
+        self.assertEqual(dispatch["q3_old_ids_by_layer"],
+                         {str(layer): sorted(ids) for layer, ids in RETAINED.items()})
+        self.assertNotIn("REAP salience", dispatch["order_basis"])
+        write_json(self.order, {"1": EXPERT_ORDER[1]})
+        err = io.StringIO()
+        argv_invalid = self._argv("out-all-q3-invalid")
+        argv_invalid[argv_invalid.index("fixture-reap25-mixed-q3")] = "fixture-reap25-all-q3"
+        with contextlib.redirect_stderr(err):
+            code = build_main(argv_invalid)
+        self.assertEqual(code, 1)
+        self.assertIn("missing MoE layer 2", err.getvalue())
+        self.assertFalse((self.base / "out-all-q3-invalid").exists())
+        self.assertFalse((self.base / "out-all-q3-invalid.prune_map.json").exists())
+
+
 
     def test_cli_unknown_candidate_id_exits_one(self):
         from mimo_halo.build.__main__ import main as build_main

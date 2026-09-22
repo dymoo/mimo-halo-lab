@@ -670,6 +670,39 @@ def _plan_output_shape_affine(logical_shape: list, bits: int, group: int):
     return rows, cols, codes_shape, scale_shape
 
 
+def _validate_expert_order(
+    expert_order: dict | None, retained_by_layer: dict[int, list[int]], original: int
+) -> None:
+    """Require an exact original-ID permutation for each retained MoE layer."""
+    if expert_order is None:
+        return
+    if not isinstance(expert_order, dict):
+        raise BuildError("expert_order must be a layer-to-list object")
+    expected = set(retained_by_layer)
+    for layer in expert_order:
+        if not _is_int(layer):
+            raise BuildError(f"expert_order layer key {layer!r} must be an integer")
+    missing = sorted(expected - expert_order.keys())
+    unexpected = sorted(expert_order.keys() - expected)
+    if missing:
+        raise BuildError(f"expert_order is missing MoE layer {missing[0]}")
+    if unexpected:
+        raise BuildError(f"expert_order has unexpected MoE layer {unexpected[0]}")
+    for layer, order in expert_order.items():
+        if not isinstance(order, list):
+            raise BuildError(f"expert_order[{layer}] must be a list of original expert ids")
+        if any(not _is_int(expert) or not 0 <= expert < original for expert in order):
+            raise BuildError(
+                f"expert_order[{layer}] contains an invalid original expert id "
+                f"(expected integers in [0, {original}))"
+            )
+        if sorted(order) != sorted(retained_by_layer[layer]):
+            raise BuildError(
+                f"expert_order[{layer}] must be a permutation of the layer's "
+                "retained expert ids"
+            )
+
+
 def _plan_build(
     inv: dict,
     pmap: dict,
@@ -684,39 +717,50 @@ def _plan_build(
     distribution = parsed["distribution"]
     plan = Plan()
 
-    # Resolve the per-layer Q3 sets (byte totals are order-independent; the
-    # chosen order is recorded exactly).
+    # Mixed recipes take the first experts in the supplied precision order.
+    # When every retained expert is Q3, relative order cannot affect
+    # precision; without an order, record original IDs without implying salience.
     retained_by_layer = pmap["retained_by_layer"]
+    _validate_expert_order(
+        expert_order, retained_by_layer, inv["architecture"]["original_experts_per_layer"]
+    )
+    if (
+        0 < precision["q3_instances"] < recipe["retained_total_experts"]
+        and expert_order is None
+    ):
+        raise BuildError("expert_order is required for a mixed native/Q3 recipe")
     base = distribution["base_q3_per_layer"]
     extra_layers = set(distribution["extra_q3_layers"])
     extra_per = distribution["extra_q3_per_layer"]
     q3_by_layer: dict[int, list[int]] = {}
-    order_basis = (
-        "caller-supplied salience order (lowest salience first)"
-        if expert_order
-        else "deterministic placeholder: descending original expert id "
-        "(byte totals order-independent; REAP-salience ordering pending)"
-    )
+    if precision["q3_instances"] == 0:
+        order_basis = "no Q3 expert instances; all survivors retain native MXFP4"
+    elif precision["native_mxfp4_instances"] == 0:
+        order_basis = (
+            "all retained experts Q3; caller-supplied order recorded "
+            "(precision order irrelevant)"
+            if expert_order is not None
+            else "all retained experts Q3; ascending original IDs "
+                 "(precision order irrelevant)"
+        )
+    else:
+        order_basis = (
+            "caller-supplied precision order (ascending REAP salience, when used, "
+            "is a PROXY, not measured quantization sensitivity or a quality winner)"
+        )
     for layer in sorted(retained_by_layer):
-        retained_set = set(retained_by_layer[layer])
         n_q3 = extra_per if layer in extra_layers else base
-        if expert_order is not None:
-            if layer not in expert_order:
-                raise BuildError(f"expert_order is missing MoE layer {layer}")
-            order = list(expert_order[layer])
-            if sorted(order) != sorted(retained_by_layer[layer]):
-                raise BuildError(
-                    f"expert_order[{layer}] must be a permutation of the layer's "
-                    "retained expert ids"
-                )
-        else:
-            order = sorted(retained_set, reverse=True)
+        order = (
+            expert_order[layer]
+            if expert_order is not None
+            else sorted(retained_by_layer[layer])
+        )
         if n_q3 > len(order):
             raise BuildError(
                 f"layer {layer}: distribution asks for {n_q3} Q3 instances but "
                 f"only {len(order)} experts are retained"
             )
-        q3_by_layer[layer] = list(order[:n_q3])
+        q3_by_layer[layer] = order[:n_q3]
     total_q3 = sum(len(v) for v in q3_by_layer.values())
     if total_q3 != precision["q3_instances"]:
         raise BuildError(
