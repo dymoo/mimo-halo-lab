@@ -536,7 +536,29 @@ def make_fixture(base: Path, *, drop_scale: str | None = None) -> dict:
     shard_payload = write_safetensors(root / "model.safetensors", shard0)
     mtp_payload = write_safetensors(root / "model_mtp.safetensors", mtp_shard)
     write_safetensors(root / "dflash" / "dflash_draft_model.safetensors", dflash_shard)
-    write_json(root / "config.json", {"fixture": True, "hidden_size": HIDDEN})
+    write_json(
+        root / "config.json",
+        {
+            # Mirrors the pinned config's shape: one routed-expert scalar
+            # (source value = original 8 experts; the build must adapt it to
+            # the kept count), top-k routing that must survive verbatim, and
+            # quantization metadata that must never lie about Q3 codes.
+            "model_type": "mimo_fixture",
+            "architectures": ["MiMoFixtureForCausalLM"],
+            "hidden_size": HIDDEN,
+            "num_hidden_layers": 3,
+            "moe_layer_freq": [0, 1, 1],
+            "n_routed_experts": EXPERTS,
+            "num_experts_per_tok": 2,
+            "topk_method": "noaux_tc",
+            "dtype": "bfloat16",
+            "quantization_config": {
+                "quant_method": "fp8",
+                "store_dtype": "mxfp4",
+                "mxfp4_block_size": 32,
+            },
+        },
+    )
     write_json(root / "audio_tokenizer" / "config.json", {"fixture": True})
     write_json(
         root / "model.safetensors.index.json",
@@ -1110,11 +1132,145 @@ class EndToEndBuildTest(unittest.TestCase):
             {1: RETAINED[1], 2: RETAINED[2]},
         )
 
+    def test_config_adapted_to_kept_counts_and_instantiates_matching_shapes(self):
+        # The source config is never touched: its bytes still match the
+        # digest pinned at fixture creation.
+        source_config_path = FIXTURE["root"] / "config.json"
+        source_config = json.loads(source_config_path.read_text())
+        inventory = json.loads(Path(FIXTURE["inventory"]).read_text())
+        pinned = next(
+            f["lfs_sha256"] for f in inventory["source"]["files"]
+            if f["path"] == "config.json"
+        )
+        self.assertEqual(sha(source_config_path.read_bytes()), pinned)
+
+        # A NEW output config is written, adapted to the built shapes.
+        wcfg = json.loads((self.out / "config.json").read_text())
+        self.assertNotEqual(
+            (self.out / "config.json").read_bytes(),
+            source_config_path.read_bytes(),
+        )
+        self.assertEqual(wcfg["n_routed_experts"], 6)  # 8 -> R kept experts
+        # Top-k routing and provenance keys are retained verbatim.
+        for key in (
+            "model_type",
+            "architectures",
+            "hidden_size",
+            "num_hidden_layers",
+            "moe_layer_freq",
+            "topk_method",
+            "dtype",
+            "num_experts_per_tok",
+        ):
+            self.assertEqual(wcfg[key], source_config[key], key)
+        self.assertEqual(wcfg["num_experts_per_tok"], 2)
+        # Quant metadata must never imply the Q3 U8 codes are native MXFP4.
+        self.assertNotEqual(wcfg["quantization_config"]["store_dtype"], "mxfp4")
+        self.assertEqual(
+            wcfg["quantization_config"]["store_dtype"], "second_gen_affine"
+        )
+        # The native-layout block size is neutralized with it; the fields
+        # that remain true (fp8 qkv/dense provenance) are untouched.
+        self.assertIsNone(wcfg["quantization_config"]["mxfp4_block_size"])
+        self.assertEqual(
+            wcfg["quantization_config"]["quant_method"],
+            source_config["quantization_config"]["quant_method"],
+        )
+
+        # Adaptation is recorded with exact old->new values.
+        report = json.loads((self.out / "build_report.json").read_text())
+        changes = report["config_adaptation"]["changes"]
+        self.assertEqual(changes["n_routed_experts"], {"from": 8, "to": 6})
+        self.assertEqual(
+            changes["store_dtype"], {"from": "mxfp4", "to": "second_gen_affine"}
+        )
+        self.assertEqual(changes["mxfp4_block_size"], {"from": 32, "to": None})
+        self.assertEqual(report["config_adaptation"]["source_sha256"], pinned)
+
+        # THE REGRESSION: instantiate the expected shapes from the WRITTEN
+        # config (as a loader would) and prove every written tensor matches.
+        expected = instantiate_expected_shapes(wcfg)
+        self.assertEqual(expected["n_routed_experts"], 6)
+        self.assertEqual(expected["router_weight_shape"], [6, HIDDEN])
+        self.assertEqual(expected["moe_layers"], [1, 2])
+        for layer in expected["moe_layers"]:
+            gate = self.header.tensors[f"model.layers.{layer}.mlp.gate.weight"]
+            self.assertEqual(gate["shape"], expected["router_weight_shape"])
+            bias = self.header.tensors[
+                f"model.layers.{layer}.mlp.gate.e_score_correction_bias"
+            ]
+            self.assertEqual(bias["shape"], expected["router_bias_shape"])
+        names = set(self.header.tensors)
+        for proj in ("gate_proj", "up_proj", "down_proj"):
+            for layer in expected["moe_layers"]:
+                found = set()
+                for name in names:
+                    match = re.match(
+                        rf"^model\.layers\.{layer}\.mlp\.experts\.(\d+)\.{proj}\.weight$",
+                        name,
+                    )
+                    if match:
+                        found.add(int(match.group(1)))
+                self.assertEqual(
+                    found,
+                    set(expected["expert_ids"]),
+                    f"layer {layer} {proj} expert id space vs config",
+                )
+                for expert in expected["expert_ids"]:
+                    self.assertIn(
+                        f"model.layers.{layer}.mlp.experts.{expert}.{proj}.weight_scale",
+                        names,
+                    )
+        # The in-build consistency gate ran (it raises BuildError otherwise)
+        # and the top-k-over-retained rule holds for the real architecture too.
+        self.assertLessEqual(expected["top_k"], expected["n_routed_experts"])
+        # The output quant block differs from source in exactly the two
+        # native-layout claims; everything else is source provenance.
+        self.assertEqual(wcfg["quantization_config"], {
+            **source_config["quantization_config"],
+            "store_dtype": "second_gen_affine",
+            "mxfp4_block_size": None,
+        })
+
 
 def artifacts_verify(root):
     from mimo_halo import artifacts as _artifacts
 
     return _artifacts.verify_artifact(str(root))
+
+
+def instantiate_expected_shapes(config: dict) -> dict:
+    """Instantiate the model shapes a loader derives from config.json.
+
+    Consumes the config exactly the way a real loader would - one
+    routed-expert scalar, per-layer MoE flags, hidden size, top-k routing -
+    and returns the shapes the checkpoint must then satisfy. This is the
+    regression against "config copied verbatim at 256 experts while the
+    routers were sliced": a loader instantiated from the written config has
+    to agree with the written tensors.
+    """
+    routed = config["n_routed_experts"]
+    hidden = config["hidden_size"]
+    freq = config["moe_layer_freq"]
+    layers = config["num_hidden_layers"]
+    if len(freq) != layers:
+        raise AssertionError(
+            f"moe_layer_freq length {len(freq)} != num_hidden_layers {layers}"
+        )
+    top_k = config["num_experts_per_tok"]
+    if top_k > routed:
+        raise AssertionError(
+            f"top-k {top_k} exceeds routed expert count {routed}"
+        )
+    return {
+        "n_routed_experts": routed,
+        "top_k": top_k,
+        "hidden_size": hidden,
+        "moe_layers": [i for i, flag in enumerate(freq) if flag],
+        "router_weight_shape": [routed, hidden],
+        "router_bias_shape": [routed],
+        "expert_ids": list(range(routed)),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1280,6 +1436,32 @@ class RefusalTest(unittest.TestCase):
         )
 
     # -- additional fail-closed guards ------------------------------------
+    def test_refusal_nonuniform_kept_counts(self):
+        # (a) A prune map whose per-layer kept counts vary cannot satisfy a
+        # single config scalar: the loader refuses it explicitly.
+        fx = self.fresh()
+        map_doc = json.loads(Path(fx["prune_map"]).read_text())
+        layer2 = next(e for e in map_doc["layers"] if e["layer"] == 2)
+        layer2["retained"] = layer2["retained"][:-1]  # 6 -> 5 experts
+        map_doc["retained_count"] = 6  # scalar contradiction
+        varied_map = write_json(self.base / "varied_map.json", map_doc)
+        self.assert_refused(
+            build_kwargs(fx, self.base / "out-varied", prune_map_path=varied_map),
+            BuildError,
+            "retains 5 experts, map retained_count is 6",
+        )
+        # (b) Defense in depth: the config adapter itself refuses varying
+        # counts rather than writing an inconsistent n_routed_experts.
+        from mimo_halo.build.candidate import _adapt_config
+
+        with self.assertRaisesRegex(BuildError, "varying per-layer expert counts"):
+            _adapt_config(
+                {"n_routed_experts": 8, "num_experts_per_tok": 2},
+                {1: 6, 2: 5},
+                expert_second_gen=False,
+                original_top_k=2,
+            )
+
     def test_refusal_shape_only_placeholder_selection(self):
         fx = self.fresh()
         map_doc = json.loads(Path(fx["prune_map"]).read_text())
@@ -1346,6 +1528,18 @@ class AllNativeBuildTest(unittest.TestCase):
         for entry in expert_entries:
             self.assertEqual(entry["action"], "copy")
             self.assertEqual(entry["input_sha256"], entry["output_sha256"])
+        # Config adaptation on an all-native build: routed count follows the
+        # kept experts, quant metadata stays VERBATIM because every expert
+        # tensor is a bit-exact native MXFP4 copy (nothing implies a lie).
+        wcfg = json.loads((Path(result["out_dir"]) / "config.json").read_text())
+        self.assertEqual(wcfg["n_routed_experts"], 6)
+        self.assertEqual(wcfg["num_experts_per_tok"], 2)
+        self.assertEqual(wcfg["quantization_config"]["store_dtype"], "mxfp4")
+        self.assertEqual(wcfg["quantization_config"]["mxfp4_block_size"], 32)
+        self.assertEqual(report["config_adaptation"]["changes"]["n_routed_experts"],
+                         {"from": 8, "to": 6})
+        self.assertIsNone(report["config_adaptation"]["changes"]["store_dtype"])
+        self.assertNotIn("mxfp4_block_size", report["config_adaptation"]["changes"])
 
     def test_second_gen_build_fails_closed_without_numpy(self):
         with mock.patch.dict(sys.modules, {"numpy": None}):

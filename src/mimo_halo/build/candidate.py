@@ -140,6 +140,13 @@ REAP_PERCENTS = (25, 30, 35, 40, 45)
 TARGET_RESIDENT_BYTES = 90 * (1 << 30)  # 96636764160
 TOLERANCE_BYTES = 1932735283  # floor(2% of target); window matches the config
 INDEX_NAME = "model.safetensors.index.json"
+CONFIG_NAME = "config.json"
+#: The single routed-expert-count scalar of the pinned config (only field
+#: that contradicts row-sliced routers when left at 256).
+ROUTED_EXPERT_COUNT_KEYS = ("n_routed_experts",)
+#: Replacement for a store_dtype claim of "mxfp4" on a build whose expert
+#: tensors are second-gen affine codes: never implies native MXFP4.
+SECOND_GEN_STORE_DTYPE = "second_gen_affine"
 QUANT_ASSIGNMENT_NAME = "quant_assignment.json"
 BUILD_REPORT_NAME = "build_report.json"
 CANDIDATE_RECORD_NAME = "candidate.json"
@@ -640,6 +647,8 @@ class Plan:
     router_units: int = 0
     floor_bytes: int = 0
     dispatch: dict = field(default_factory=dict)
+    config_adaptation: dict = field(default_factory=dict)
+    expert_second_gen: bool = False
     total_text_bytes: int = 0
     out_names_seen: set = field(default_factory=set)
 
@@ -802,6 +811,9 @@ def _plan_build(
                 "path": rel,
                 "declared_size": entry.get("size"),
                 "declared_lfs_sha256": entry.get("lfs_sha256"),
+                # config.json is adapted to the built shapes (kept counts +
+                # honest quant metadata); everything else is verbatim.
+                "adapt": rel == CONFIG_NAME,
             }
         )
 
@@ -1414,7 +1426,91 @@ def _plan_build(
             for k, v in sorted(pmap["old_to_new_by_layer"].items())
         },
     }
+    plan.expert_second_gen = any(
+        tensor.action == "affine" and tensor.cls.startswith("experts")
+        for shard_tensors_out in plan.shards.values()
+        for tensor in shard_tensors_out
+    )
     return plan
+
+
+def _adapt_config(
+    config: dict,
+    counts_by_layer: dict[int, int],
+    *,
+    expert_second_gen: bool,
+    original_top_k: int,
+) -> tuple[dict, dict]:
+    """Adapt source config.json to the shapes the build actually writes.
+
+    * ``n_routed_experts`` is a single scalar: when the prune map keeps
+      varying counts across layers (no uniform scalar exists), the build
+      refuses explicitly instead of writing an inconsistent config.
+    * ``num_experts_per_tok`` (top-k routing) is never changed and must
+      agree with the pinned inventory architecture.
+    * On a build with second-gen expert tensors, a ``store_dtype: mxfp4``
+      claim would imply the Q3 U8 codes are native MXFP4: the claim is
+      replaced with an explicit non-mxfp4 marker and recorded. All-native
+      builds keep the quant metadata verbatim (it is true).
+    """
+    if not counts_by_layer:
+        raise BuildError("config adaptation: no per-layer kept counts available")
+    distinct = sorted(set(counts_by_layer.values()))
+    if len(distinct) != 1:
+        raise BuildError(
+            "config n_routed_experts is a single scalar but the prune map keeps "
+            f"varying per-layer expert counts "
+            f"{dict(sorted(counts_by_layer.items()))}; refusing an inconsistent config"
+        )
+    kept = distinct[0]
+    if not _is_int(original_top_k) or original_top_k <= 0:
+        raise BuildError(
+            f"config adaptation: pinned architecture top_k is invalid: {original_top_k!r}"
+        )
+    adapted = json.loads(json.dumps(config))  # deep copy of JSON data
+    changes: dict = {
+        "n_routed_experts": None,
+        "store_dtype": None,
+        "num_experts_per_tok": original_top_k,
+        "kept_experts_per_layer": kept,
+    }
+    found = [key for key in ROUTED_EXPERT_COUNT_KEYS if key in adapted]
+    if not found:
+        raise BuildError(
+            "config.json has no recognized routed-expert count field "
+            f"({', '.join(ROUTED_EXPERT_COUNT_KEYS)}); refusing a config whose "
+            "router consistency cannot be verified"
+        )
+    for key in found:
+        before = adapted[key]
+        if not _is_int(before):
+            raise BuildError(f"config {key} must be an int, got {before!r}")
+        if before != kept:
+            adapted[key] = kept
+            changes["n_routed_experts"] = {"from": before, "to": kept}
+    top_k = adapted.get("num_experts_per_tok")
+    if top_k is not None and top_k != original_top_k:
+        raise BuildError(
+            f"config num_experts_per_tok {top_k!r} contradicts the pinned "
+            f"architecture top_k {original_top_k!r}"
+        )
+    quant = adapted.get("quantization_config")
+    if expert_second_gen and isinstance(quant, dict):
+        # The Q3 U8 codes are NOT native MXFP4: strip every key that
+        # describes the native expert layout. store_dtype "mxfp4" -> an
+        # explicit marker that matches no known quant-vocabulary word (the
+        # quant_method key is never edited), and mxfp4_block_size, which
+        # only has meaning under the native layout, is neutralized to null.
+        if quant.get("store_dtype") == "mxfp4":
+            quant["store_dtype"] = SECOND_GEN_STORE_DTYPE
+            changes["store_dtype"] = {"from": "mxfp4", "to": SECOND_GEN_STORE_DTYPE}
+        if quant.get("mxfp4_block_size") is not None:
+            changes["mxfp4_block_size"] = {
+                "from": quant["mxfp4_block_size"],
+                "to": None,
+            }
+            quant["mxfp4_block_size"] = None
+    return adapted, changes
 
 
 # ---------------------------------------------------------------------------
@@ -1648,20 +1744,13 @@ def _readback_verify(plan: Plan, out_dir: Path) -> None:
                     )
 
 
-def _copy_metadata(plan: Plan, root_real: Path, out_dir: Path) -> None:
+def _copy_metadata(plan: Plan, root_real: Path, out_dir: Path, *, original_top_k: int) -> None:
     for entry in plan.metadata:
         src_path = _resolve_inside(root_real, entry["path"], "metadata file")
         dst_path = out_dir / entry["path"]
-        digest = hashlib.sha256()
-        with open(src_path, "rb") as src, open(dst_path, "wb") as out:
-            while True:
-                chunk = src.read(COPY_CHUNK_BYTES)
-                if not chunk:
-                    break
-                digest.update(chunk)
-                out.write(chunk)
-        source_sha = digest.hexdigest()
-        size = os.path.getsize(src_path)
+        source_bytes = src_path.read_bytes()
+        source_sha = _sha256_bytes(source_bytes)
+        size = len(source_bytes)
         if entry["declared_size"] is not None and entry["declared_size"] != size:
             raise SourcePathError(
                 f"metadata file {entry['path']!r} size {size} != pinned inventory "
@@ -1673,6 +1762,54 @@ def _copy_metadata(plan: Plan, root_real: Path, out_dir: Path) -> None:
                 f"metadata file {entry['path']!r} fails digest verification against "
                 "the pinned inventory"
             )
+        entry["source_sha256"] = source_sha
+        if entry.get("adapt"):
+            # config.json: verified against the pinned source FIRST, then
+            # adapted to the shapes this build writes (kept counts + honest
+            # quant metadata); the source tree itself is never touched.
+            try:
+                source_config = json.loads(source_bytes.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise BuildError(f"source config.json is not valid JSON: {exc}") from exc
+            if not isinstance(source_config, dict):
+                raise BuildError("source config.json must be a JSON object")
+            counts = {
+                int(layer): len(retained)
+                for layer, retained in plan.dispatch["retained_by_layer"].items()
+            }
+            adapted, changes = _adapt_config(
+                source_config,
+                counts,
+                expert_second_gen=plan.expert_second_gen,
+                original_top_k=original_top_k,
+            )
+            text = json.dumps(adapted, indent=2, ensure_ascii=False) + "\n"
+            dst_path.write_text(text, encoding="utf-8")
+            back = json.loads(dst_path.read_text(encoding="utf-8"))
+            if back != adapted:  # pragma: no cover - only on write corruption
+                raise BuildError("adapted config.json failed read-back verification")
+            entry["sha256"] = _sha256_bytes(text.encode("utf-8"))
+            entry["verified"] = (
+                "source sha256 verified against the pinned inventory before "
+                "adaptation; output bytes adapted (see build_report "
+                "config_adaptation)"
+            )
+            entry["adapted"] = True
+            plan.config_adaptation = {
+                "source_sha256": source_sha,
+                "output_sha256": entry["sha256"],
+                "changes": changes,
+                "note": (
+                    "config.json is a NEW file in the artifact root; the source "
+                    "tree is never modified. n_routed_experts follows the prune "
+                    "map's uniform kept count; num_experts_per_tok (top-k) and "
+                    "all other keys are retained verbatim; a store_dtype 'mxfp4' "
+                    "claim is replaced only when expert tensors are second-gen "
+                    "affine codes (never implies native MXFP4)."
+                ),
+            }
+            continue
+        dst_path.write_bytes(source_bytes)
         if _sha256_bytes(dst_path.read_bytes()) != source_sha:
             raise BuildError(
                 f"copied metadata digest mismatch for {entry['path']!r}"
@@ -1683,6 +1820,70 @@ def _copy_metadata(plan: Plan, root_real: Path, out_dir: Path) -> None:
             if declared_sha is not None
             else "sha256 recorded from bytes (no pinned digest for this file)"
         )
+
+
+def _verify_config_router_consistency(out_dir: Path, plan: Plan) -> None:
+    """Fail closed unless the written config matches the written tensors.
+
+    Re-reads the adapted ``config.json`` from disk and cross-checks every
+    shape the config implies (routed-expert scalar -> router rows, expert id
+    space, top-k over the retained set) against the planned tensors that the
+    read-back pass already proved byte-identical to the shard headers.
+    """
+    if not any(entry.get("adapt") for entry in plan.metadata):
+        return  # source has no config.json; nothing claims router shapes
+    config_path = out_dir / CONFIG_NAME
+    if not config_path.is_file():
+        raise BuildError("config.json was planned but is missing from the output")
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BuildError(f"written config.json is not valid JSON: {exc}") from exc
+    routed = config.get("n_routed_experts")
+    if not _is_int(routed) or routed <= 0:
+        raise BuildError(f"written config n_routed_experts is invalid: {routed!r}")
+    counts = {
+        int(layer): len(retained)
+        for layer, retained in plan.dispatch["retained_by_layer"].items()
+    }
+    if set(counts.values()) != {routed}:
+        raise BuildError(
+            f"written config n_routed_experts {routed} disagrees with the built "
+            f"kept counts {dict(sorted(counts.items()))}"
+        )
+    top_k = config.get("num_experts_per_tok")
+    if _is_int(top_k) and top_k > routed:
+        raise BuildError(
+            f"written config num_experts_per_tok {top_k} exceeds the retained "
+            f"expert count {routed} (routing stays top-k over the retained set)"
+        )
+    out_names = set(plan.out_names_seen)
+    for tensor in plan_shard_tensors(plan):
+        if tensor.action == "row_slice" and tensor.out_shape[0] != routed:
+            raise BuildError(
+                f"router tensor {tensor.out_name!r} has {tensor.out_shape[0]} rows "
+                f"but the written config claims n_routed_experts={routed}"
+            )
+    expert_re = re.compile(
+        r"^model\.layers\.(\d+)\.mlp\.experts\.(\d+)\.(gate_proj|up_proj|down_proj)\.weight$"
+    )
+    ids_by_layer_proj: dict[tuple[int, str], set[int]] = {}
+    for name in out_names:
+        match = expert_re.match(name)
+        if match:
+            ids_by_layer_proj.setdefault(
+                (int(match.group(1)), match.group(3)), set()
+            ).add(int(match.group(2)))
+    expected_ids = set(range(routed))
+    for layer in sorted(counts):
+        for proj in ("gate_proj", "up_proj", "down_proj"):
+            found = ids_by_layer_proj.get((layer, proj), set())
+            if found != expected_ids:
+                raise BuildError(
+                    f"layer {layer} {proj} expert ids {sorted(found)} do not match "
+                    f"the written config's n_routed_experts={routed} "
+                    f"(expected {sorted(expected_ids)})"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -1901,9 +2102,13 @@ def build_candidate(
     out_path.mkdir(parents=True, exist_ok=True)
     shard_facts = _write_shards(plan, out_path)
     _readback_verify(plan, out_path)
-    _copy_metadata(plan, source_root_real, out_path)
+    _copy_metadata(
+        plan, source_root_real, out_path,
+        original_top_k=inv["architecture"]["top_k"],
+    )
     if plan.index_doc is not None:
         _write_json_checked(out_path / INDEX_NAME, plan.index_doc)
+    _verify_config_router_consistency(out_path, plan)
 
     # --- records --------------------------------------------------------
     file_entries = inv["source"]["files"]
@@ -2058,6 +2263,7 @@ def build_candidate(
         },
         "output_shards": [shard_facts[name] for name in sorted(shard_facts)],
         "metadata_files": plan.metadata,
+        "config_adaptation": plan.config_adaptation,
         "index_regenerated": plan.index_doc is not None,
         "excluded_files": plan.excluded_files,
         "excluded_components": {
