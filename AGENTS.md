@@ -25,6 +25,6 @@ Single-context: one `CONTEXT.md` at the repo root plus `docs/adr/`. See `docs/ag
 ## Privacy rules (repo is public)
 
 - Never commit or paste: raw traces, model weights, private dataset payloads, secrets, tokens, hardware serial numbers, or local absolute paths.
-- Git carries manifests, hashes, aggregates and reproducible configuration only; large payloads live on local disk outside the repo.
+- Git carries source code, tests, docs, configuration, manifests, hashes, aggregates and reproducible metadata only; large payloads live on local disk outside the repo.
 - Redact/scan before any derived dataset or log leaves the workstation.
 - A versioned pre-commit guard (`scripts/privacy_guard.py`) scans staged blobs; install locally with `python3 scripts/install_hooks.py`.

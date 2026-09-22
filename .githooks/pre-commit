@@ -1,0 +1,7 @@
+#!/bin/sh
+# mimo-halo-lab pre-commit privacy gate -- thin wrapper (v1).
+# All policy lives in the versioned scanner: scripts/privacy_guard.py
+# Install with: python3 scripts/install_hooks.py
+set -e
+root="$(git rev-parse --show-toplevel)"
+exec python3 "$root/scripts/privacy_guard.py" --staged
