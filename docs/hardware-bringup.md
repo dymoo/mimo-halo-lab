@@ -15,24 +15,33 @@ environment variables only:
 Numbered 1–49. Gates are explicit stop conditions; a gate that cannot be
 passed honestly blocks the pipeline — it is never waved through.
 
+Arrival readiness state (each asset/config/command with its evidence class,
+proof, missing prerequisite, next command, and the first-Halo sequence) lives
+in `manifests/hardware/readiness.json`; evidence classes are `validated-on-Mac`,
+`static-checked-for-Linux`, `untested-on-Halo`. The Mac prep box has 48 GiB
+RAM: tiny probes and layer-streamed/bounded scratch only — no full candidate
+or full-model materialization here; memory-heavy runs coordinate with
+MiMoObservationRun. The 128 GB target is the Halo, and every Halo row stays
+`untested-on-Halo` until SSH exists.
+
 ## A. Mac workstation preparation
 
 1. `export MIMO_LAB=/path/to/lab` — required; every later step fails closed
    without it.
-2. `python3 scripts/workspace.py init --min-model-free-bytes 128849018880` (120 GiB floor) → creates
+2. `python3 "$REPO/scripts/workspace.py" init --min-model-free-bytes 128849018880` (120 GiB floor) → creates
    the layout (mkdir only), reports free bytes, and **blocks model staging**
    when free bytes are short while still creating metadata dirs (exit 1 =
    staging blocked — an expected state on a nearly-full volume, not an error).
-3. `python3 scripts/workspace.py status` — read-only; confirm `model_staging`
+3. `python3 "$REPO/scripts/workspace.py" status` — read-only; confirm `model_staging`
    and `filesystem_free_bytes` before any staging decision (it never creates
    an absent root).
-4. `python3 scripts/workspace.py smoke` — hash round-trip probe: a uniquely
+4. `python3 "$REPO/scripts/workspace.py" smoke` — hash round-trip probe: a uniquely
    named file under `caches/` is created exclusively, written, hashed, read
    back, verified and removed again; pre-existing files are never touched.
 5. Inspect the external disk read-only:
    `diskutil list && diskutil info "$MIMO_LAB" && df -h "$MIMO_LAB" && mount | grep -i "$(basename "$MIMO_LAB")"`.
    `df -h` is human-readable only — never record it as a byte count. Exact
-   free bytes come from `python3 scripts/workspace.py status`
+   free bytes come from `python3 "$REPO/scripts/workspace.py" status`
    (`filesystem_free_bytes`, measured via `statvfs`) or, equivalently,
    `diskutil info -plist "$MIMO_LAB" | plutil -extract FreeSpace raw -o - -`.
 6. Record the exact free bytes (never `df`'s rounded output) from step 5 into
@@ -53,7 +62,21 @@ passed honestly blocks the pipeline — it is never waved through.
 11. `git -C "$REPO/upstreams/llama.cpp" rev-parse HEAD` →
     `38a5b42d9a3e82e0a586bcd1caed121f36c87a73` (official reference pin).
 12. Cross-check the pins against `manifests/upstreams.json`; any mismatch
-    blocks everything downstream.
+    blocks everything downstream. A fresh checkout from the manifest
+    `fetch_method` carries NO local patches — apply and confirm both, then
+    hash-check the patch files themselves against the manifest `patches`
+    entries (patch-file vs applied-diff hashes differ by the patch's
+    explanatory header; only file hashes are compared — proven on a clean
+    pinned worktree: apply fresh + reverse `--check` OK for both):
+
+    ```sh
+    for p in "$REPO"/patches/strix-*.patch; do
+      git -C "$STRIX_SRC" apply --reverse --check "$p" 2>/dev/null ||
+        git -C "$STRIX_SRC" apply "$p"
+      git -C "$STRIX_SRC" apply --reverse --check "$p" || exit 1
+      shasum -a 256 "$p"   # Linux: sha256sum "$p" — must equal manifests/upstreams.json
+    done
+    ```
 
 ## C. Mac correctness build (deferred to Main; exact commands)
 
@@ -61,8 +84,8 @@ passed honestly blocks the pipeline — it is never waved through.
 14. `cmake --build build-metal --config Release -j 16`
 15. `ctest --test-dir build-metal --output-on-failure`
 16. Equivalently, via the driver:
-    `python3 scripts/build_runtime.py --source "$STRIX_SRC" --backend metal --run --yes`
-    (plan-only by default: `python3 scripts/build_runtime.py --source "$STRIX_SRC" --backend metal`;
+    `python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend metal --run --yes`
+    (plan-only by default: `python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend metal`;
     the plan prints each step as an argv list plus env requirements, defaults
     to the per-backend `build-metal` directory, and installs no tools).
 17. Mac-side purpose: CPU/Metal correctness sanity of codecs and tooling.
@@ -71,20 +94,15 @@ passed honestly blocks the pipeline — it is never waved through.
 
 ## D. Halo Linux box — inventory capture (read-only)
 
-18. Write the command list once, e.g. `$REPO/configs/hw-commands.txt`:
+18. Write the command list once (file is operator-created, not shipped).
+    One `printf` line so copy-paste works from any indentation — no heredoc
+    `EOF` to mis-terminate:
 
-    ```text
-    uname -a
-    lscpu
-    free -b
-    lsblk
-    lspci -nn -k
-    dmidecode -t bios            # optional, sudo-marked
-    dmidecode -t memory          # optional, sudo-marked
-    smartctl -a /dev/nvme0n1     # optional, sudo-marked
+    ```sh
+    printf '%s\n' 'uname -a' 'lscpu' 'free -b' 'lsblk' 'lspci -nn -k' 'dmidecode -t bios            # optional, sudo-marked' 'dmidecode -t memory          # optional, sudo-marked' 'smartctl -a /dev/nvme0n1     # optional, sudo-marked' > "$REPO/configs/hw-commands.txt"
     ```
 
-19. `python3 scripts/hardware_capture.py --commands "$REPO/configs/hw-commands.txt"`
+19. `python3 "$REPO/scripts/hardware_capture.py" --commands "$REPO/configs/hw-commands.txt"`
     — raw output lands in `$MIMO_LAB/traces/private/hardware-evidence/`
     (identifiers intact, stays local); a sanitized public summary is printed
     (MACs/IPs/UUIDs/serials/hostnames/home-paths replaced by
@@ -108,7 +126,7 @@ passed honestly blocks the pipeline — it is never waved through.
     Mac copy is retained as the master until a promotion decision says
     otherwise.
 24. Standard layout on the Halo box mirrors step 2: same
-    `python3 scripts/workspace.py init` against the Halo-side `$MIMO_LAB`.
+    `python3 "$REPO/scripts/workspace.py" init` against the Halo-side `$MIMO_LAB`.
 
 ## E. Backend builds on the Halo box
 
@@ -116,7 +134,7 @@ passed honestly blocks the pipeline — it is never waved through.
     cmake -B build-vulkan -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_VULKAN=ON -DGGML_METAL=OFF -DGGML_HIP=OFF &&
     cmake --build build-vulkan --config Release -j 16`.
 26. `ctest --test-dir build-vulkan --output-on-failure`
-    — or `python3 scripts/build_runtime.py --source "$STRIX_SRC" --backend vulkan --run --yes`.
+    — or `python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend vulkan --run --yes`.
 27. HIP (control lane): `cd "$STRIX_SRC" && HIPCXX="$(hipconfig -l)/clang"
     HIP_PATH="$(hipconfig -R)" cmake -B build-hip -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_HIP=ON
     -DGPU_TARGETS=gfx1151 -DGGML_METAL=OFF -DGGML_VULKAN=OFF && cmake --build build-hip --config Release -j 16`.
@@ -129,26 +147,91 @@ passed honestly blocks the pipeline — it is never waved through.
 
 ## F. Reference-model sanity ladder (bare-metal, before any virtualization)
 
-30. Tiny GGUF sanity run on the CPU build:
-    `"$STRIX_SRC/build-cpu/bin/llama-cli" -m "$MIMO_LAB/source-models/tiny.gguf" -p "sanity" -n 8`.
-31. Same tiny GGUF on Vulkan:
-    `"$STRIX_SRC/build-vulkan/bin/llama-cli" -m "$MIMO_LAB/source-models/tiny.gguf" -p "sanity" -n 8 -ngl 999`.
-32. Same tiny GGUF on HIP with the control env from step 28:
-    `HIP_LAUNCH_BLOCKING=1 HSA_OVERRIDE_GFX_VERSION=11.5.1 GGML_HIP_ENABLE_UNIFIED_MEMORY=1 "$STRIX_SRC/build-hip/bin/llama-cli" -m "$MIMO_LAB/source-models/tiny.gguf" -p "sanity" -n 8 -ngl 999`.
+30. Stage the synthetic graph smoke fixture — NOT a known-good quality
+    model, compatibility proof only (identity anchored in
+    `manifests/hardware/readiness.json`), and never overwrite an existing
+    target without hash identity:
+
+    ```sh
+    F="$REPO/scratch/loadability/tiny_b_dense.gguf"   # sha256 04399ecf52904ce316e06ea4b73d3820793ee07c0c9eff2d43efd735386d9647
+    T="$MIMO_LAB/source-models/tiny.gguf"
+    if [ -e "$T" ]; then cmp -s "$F" "$T" || { echo "tiny.gguf exists with different identity — verify before replacing"; exit 1; }; else cp -n "$F" "$T"; fi
+    shasum -a 256 "$T"   # Linux: sha256sum "$T" — must equal the hash above
+    ```
+
+    CPU sanity run (flag set proven on the pinned build — this pin REJECTS
+    `--no-conversation`; use `--single-turn`):
+    `"$STRIX_SRC/build-cpu/bin/llama-cli" --model "$MIMO_LAB/source-models/tiny.gguf" --offline --ctx-size 512 --n-gpu-layers 0 --threads 1 --seed 42 --temp 0 --n-predict 8 --single-turn --simple-io --prompt test`
+    (exit 0, 8 generated tokens, ftype F16 — graph compatibility proof only;
+    no model-quality or Halo speed claim).
+31. Same tiny GGUF on Vulkan — identical command with
+    `"$STRIX_SRC/build-vulkan/bin/llama-cli"` and `--n-gpu-layers 999`.
+32. Same tiny GGUF on HIP with the control env from step 28 — identical
+    command with `"$STRIX_SRC/build-hip/bin/llama-cli"`, `--n-gpu-layers 999`,
+    and `HIP_LAUNCH_BLOCKING=1 HSA_OVERRIDE_GFX_VERSION=11.5.1 GGML_HIP_ENABLE_UNIFIED_MEMORY=1`
+    prefixed.
 33. Reference-architecture performance point (`$MODEL_REF`) on Vulkan, then
     HIP-with-control; record both, never mix lanes:
     `"$STRIX_SRC/build-vulkan/bin/llama-bench" -m "$MODEL_REF" -p 8192`,
     then
     `HIP_LAUNCH_BLOCKING=1 HSA_OVERRIDE_GFX_VERSION=11.5.1 GGML_HIP_ENABLE_UNIFIED_MEMORY=1 "$STRIX_SRC/build-hip/bin/llama-bench" -m "$MODEL_REF" -p 8192`.
-34. MiMo-architecture smoke: convert the real trunk checkpoint
-    (`MiMoV2FlashForCausalLM` → `mimo2`, upstream conversion flow) into
-    `"$MIMO_LAB/source-models/mimo2-trunk.gguf"`, then run
-    `"$STRIX_SRC/build-vulkan/bin/llama-cli" -m "$MIMO_LAB/source-models/mimo2-trunk.gguf" -p "sanity" -n 16 -ngl 999`
-    and
-    `"$STRIX_SRC/build-vulkan/bin/llama-perplexity" -m "$MIMO_LAB/source-models/mimo2-trunk.gguf" --file "$MIMO_LAB/datasets/perplexity-slice.txt" -ngl 999`
-    on a small slice; record actual expert count/layer count/top-k from the
-    GGUF metadata and compare with the hypothesis ledger in
-    `docs/runtime-audit.md` §5.
+34. MiMo original-weights conversion + candidate-gated resident smoke.
+    Convert the real trunk checkpoint from the original Xiaomi weights with
+    the pinned converter via the repo venv — the system `python3` on the prep
+    Mac cannot import `transformers` (packaging metadata resolves None);
+    `--vocab-only` is proven exit 0 through this venv (and the dry-run
+    empirically enters the pinned converter's mimo2 text path — no HF
+    architecture-class claim is made here), but the full conversion is
+    **blocked until the expert-merge `KeyError`
+    (`conversion/mimo.py:211`, `model.layers.1.mlp.experts.12.gate_proj.weight`)
+    is fixed (owned by NativeGgufBridge)** — never wave that gate:
+
+    ```sh
+    (cd "$STRIX_SRC" && "$REPO/.venv/bin/python" convert_hf_to_gguf.py \
+      "$MIMO_LAB/source-models/XiaomiMiMo--MiMo-V2.6-Flash-RL/5711b268169967567844e1e560e8a3966da959b1" \
+      --outfile "$MIMO_LAB/source-models/mimo2-trunk.gguf")
+    ```
+
+    The unpruned trunk GGUF is the **layer-streamed ORIGINAL quality
+    reference only — NEVER resident-loaded**: its source scale (~161 GiB
+    observed in `model.safetensors.index.json` `total_size` 172923364096 B,
+    larger after conversion) exceeds both the 48 GiB prep Mac and the 128 GB
+    Halo. Original-reference quality numbers come from the layer-streamed
+    flow, not from a `-ngl 999` run.
+
+    Resident serving/benchmarks consume an actual selected ~$90 GiB
+    candidate — `$CANDIDATE_DIR/$MODEL` — and only after this artifact-size
+    preflight (admission ceiling =
+    `budget.window_bytes[1]` = 98569499443 in
+    `configs/experiments/compression-sweep.json`, the 90 GiB ±2% ACCEPTED
+    upper band — gating on `target_resident_bytes` alone would silently
+    reject in-band candidates such as REAP45 (+0.84%) and REAP25 (+0.98%)):
+
+    ```sh
+    CAND_FILE_BYTES=$(stat -c%s "$MODEL")                # artifact file size: conservative preflight proxy ONLY — NOT resident weight memory
+    MEM_AVAIL=$(awk '/MemAvailable/{print $2*1024}' /proc/meminfo)
+    ADMISSION_CEILING=98569499443                        # budget.window_bytes[1]: 90 GiB ±2% accepted upper band
+    FIRST_BOOT_RESERVE_ASSUMPTION=$((16*1024*1024*1024))  # named assumption: conservative provisional first-boot reserve, not a measured hardware requirement
+    test "$CAND_FILE_BYTES" -le "$ADMISSION_CEILING" || { echo "candidate artifact $CAND_FILE_BYTES B exceeds accepted band upper bound $ADMISSION_CEILING B"; exit 1; }
+    test $((CAND_FILE_BYTES + FIRST_BOOT_RESERVE_ASSUMPTION)) -le "$MEM_AVAIL" || { echo "MemAvailable $MEM_AVAIL B too low for $CAND_FILE_BYTES B + first-boot reserve"; exit 1; }
+    "$STRIX_SRC/build-vulkan/bin/llama-cli" --model "$MODEL" --offline --ctx-size 512 --n-gpu-layers 999 --threads 1 --seed 42 --temp 0 --n-predict 16 --single-turn --simple-io --prompt sanity
+    ```
+
+    File size is only a conservative artifact-size preflight proxy — it does
+    NOT equal resident weight memory; final admission and quality reports
+    must use actual loader/runtime resident-memory measurements, and the
+    16 GiB reserve above is a named conservative first-boot assumption, not
+    a measured hardware requirement.
+
+    **No candidate has been built yet — this resident leg stays BLOCKED;
+    no fake substitution** (the tiny fixture proves graph compatibility
+    only, never quality). Perplexity leg on the candidate:
+    `"$STRIX_SRC/build-vulkan/bin/llama-perplexity" -m "$MODEL" --file "$MIMO_LAB/datasets/perplexity-slice.txt" -ngl 999`
+    — the slice must be cut from the real corpus governed by
+    `configs/dataset.json` / `docs/datasets.md` (no placeholder data; the
+    slice leg stays blocked until that corpus is materialized). Record actual
+    expert count/layer count/top-k from the candidate's GGUF metadata and
+    compare with the hypothesis ledger in `docs/runtime-audit.md` §5.
 35. Gate E (1% calibration gate): run the observation pipeline on ~1% of the
     planned calibration stream end-to-end; verify hidden-state persistence,
     resumability (`--resume`), seed control, and that per-layer statistics
@@ -162,11 +245,11 @@ passed honestly blocks the pipeline — it is never waved through.
 ## G. Benchmarks, burst replay, soak
 
 38. Prompt-processing matrix (Vulkan lane):
-    `python3 scripts/benchmark_matrix.py --mode bench --tool "$STRIX_SRC/build-vulkan/bin/llama-bench" --model "$MODEL" --output "$MIMO_LAB/metrics/pp-vulkan.json"`.
+    `python3 "$REPO/scripts/benchmark_matrix.py" --mode bench --tool "$STRIX_SRC/build-vulkan/bin/llama-bench" --model "$MODEL" --output "$MIMO_LAB/metrics/pp-vulkan.json"`.
     These are in-process batched prompt-processing numbers (PP8K/32K/64K/128K)
     — never labelled as concurrency.
 39. Concurrency matrix (Vulkan lane, real parallel requests):
-    `python3 scripts/benchmark_matrix.py --mode serve --server "$STRIX_SRC/build-vulkan/bin/llama-server" --model "$MODEL" --output "$MIMO_LAB/metrics/c-vulkan.json"`.
+    `python3 "$REPO/scripts/benchmark_matrix.py" --mode serve --server "$STRIX_SRC/build-vulkan/bin/llama-server" --model "$MODEL" --output "$MIMO_LAB/metrics/c-vulkan.json"`.
     C1/C2/C4/C8 are actual concurrent HTTP requests against one server;
     aggregate tok/s comes from server-reported token counts over the wave
     wall time.
@@ -179,9 +262,9 @@ passed honestly blocks the pipeline — it is never waved through.
     makes the runner exit nonzero — a partial matrix is never presented as
     complete.
 42. Bursty replay — plan first (no model calls):
-    `python3 scripts/burst_replay.py --schedule timings.json`
+    `python3 "$REPO/scripts/burst_replay.py" --schedule timings.json`
 43. Bursty replay — live:
-    `python3 scripts/burst_replay.py --schedule timings.json --server-url http://127.0.0.1:18080/completion`.
+    `python3 "$REPO/scripts/burst_replay.py" --schedule timings.json --server-url http://127.0.0.1:18080/completion`.
     The schedule must come from real sanitized timing input or local
     trace-derived timings; the tool invents no performance and echoes the
     schedule into the report.
