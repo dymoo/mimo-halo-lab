@@ -1,0 +1,98 @@
+{
+  "format": "mlx",
+  "architecture": "MiMo-V2.6 native MTP",
+  "num_nextn_predict_layers": 3,
+  "quantization": {
+    "model.mtp.layers.2.self_attn.qkv_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.0.self_attn.qkv_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.2.mlp.down_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.1.self_attn.qkv_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.2.eh_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.1.self_attn.o_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.1.mlp.up_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.0.self_attn.o_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.1.mlp.gate_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.2.self_attn.o_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.1.mlp.down_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.0.mlp.up_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.0.mlp.down_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.1.eh_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.0.mlp.gate_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.2.mlp.gate_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.0.eh_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    },
+    "model.mtp.layers.2.mlp.up_proj.weight": {
+      "group_size": 64,
+      "bits": 4,
+      "mode": "affine"
+    }
+  },
+  "runtime_status": "weights retained; requires a MiMo MTP-capable runtime"
+}

@@ -1,0 +1,11 @@
+{
+ "alloc": "alloc_k64rel.json",
+ "ppl": 9.528511047363281,
+ "kl_base_to_quant": 0.8314559955519677,
+ "top1_agree": 0.7949004837921743,
+ "tokens": 63457,
+ "attn_bits": 8,
+ "embed_bits": 16,
+ "lm_bits": 8,
+ "gptq": true
+}

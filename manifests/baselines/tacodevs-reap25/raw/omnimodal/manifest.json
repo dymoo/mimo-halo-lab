@@ -1,0 +1,10 @@
+{
+  "source": "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+  "vision_tensors": 364,
+  "audio_tensors": 95,
+  "vision_weights": "omnimodal/vision_encoder.safetensors",
+  "audio_weights": "omnimodal/audio_encoder.safetensors",
+  "audio_tokenizer": "audio_tokenizer/model.safetensors",
+  "dflash_weights": "dflash/dflash_draft_model.safetensors",
+  "native_mtp_weights": "mtp/model_mtp.safetensors"
+}
