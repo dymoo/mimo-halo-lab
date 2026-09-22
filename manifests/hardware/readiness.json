@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "recorded_at_utc": "2026-09-22T19:05:00Z",
+  "recorded_at_utc": "2026-09-22T20:41:57Z",
   "purpose": "Arrival readiness for the Strix Halo: every asset/config/command on the first-boot path with the proof that exists for it, the missing prerequisite, and the next command. Nothing here claims Halo execution.",
   "evidence_classes": {
     "validated-on-Mac": "executed on the Mac workstation; exit code and output observed",
@@ -25,9 +25,9 @@
     },
     "local_patches": {
       "evidence": "validated-on-Mac",
-      "proof": "manifest patch shas hash-match patch files after b710049: strix-slot-restore-checkpoints.patch 2c28dccd0041342fbec8a9008b4f7d9567c617bb70cb71d4eef64168c9a24d65, strix-macos-prefetch.patch c199b3b31c1b2e5c0037824ff119fae2748d95f3455a454d50dcd7a5777abe7e. Patch-file vs applied-diff hashes differ only by the patch explanatory header (applied-diff body verified == tree by NvmeRestoreFix); compare patch FILE hashes, never diffs. Apply/confirm loop proven twice on a clean pinned worktree: apply fresh, reverse --check OK for both.",
-      "missing": "a fresh Halo checkout from the manifest fetch_method is UNPATCHED",
-      "next": "run the patch loop in docs/hardware-bringup.md step 12 on the Halo before building"
+      "proof": "The four registered patch-file SHA256 values match manifests/upstreams.json and the files: strix-slot-restore-checkpoints.patch 2c28dccd0041342fbec8a9008b4f7d9567c617bb70cb71d4eef64168c9a24d65, strix-macos-prefetch.patch c199b3b31c1b2e5c0037824ff119fae2748d95f3455a454d50dcd7a5777abe7e, strix-mimo-native-mxfp4.patch dc55e76ad662ca2f1d3acfa8ed68382eac3a2c0803667332f95a66534eb96519, and strix-tokenizer-nfc.patch 03e4e745f1644eb9c1923b6c4d40ff90664ada36772a864603707f243ca92448 (all base 8c1c282ecb194e8f02613defcc4a07c22b6d1c08). The native converter patch passed ordinary apply --check and was applied; reverse --check is clean along with the two existing runtime patches. The revised NFC patch was applied and built with explicit ICU4C configuration. Main reports all 6 tests in tests.test_tokenizer_nfc pass, including malformed-byte U+FFFD handling and non-BPE writer refusal; downstream CMake configure/build for a find_package(llama) consumer calling llama_tokenize exited 0 and compiled/linked against temporary static libllama (the consumer was not run), and pkg-config --static --libs llama includes -licuuc -licudata. Scoped Mac evidence only; no Halo execution.",
+      "missing": "a fresh Halo checkout from the manifest fetch_method is UNPATCHED; Halo ICU build and tokenizer parity are not verified",
+      "next": "run the all-four-patch loop in docs/hardware-bringup.md step 12 on Halo before building; install its ICU development package and pass the actual ICU prefix as documented, then verify tokenizer parity separately"
     },
     "smoke_fixture": {
       "evidence": "validated-on-Mac",
@@ -54,16 +54,24 @@
       "next": "rsync -a --checksum per runbook step 23, then verify against manifests/models/mimo-v2.6-flash-rl/inventory.json lfs_sha256 digests"
     },
     {
-      "id": "mimo2-trunk-gguf",
-      "ref": "$MIMO_LAB/source-models/mimo2-trunk.gguf",
-      "evidence": "validated-on-Mac (converter wiring only)",
-      "proof": "--vocab-only export exit 0 via $REPO/.venv/bin/python (5948629 B, sha256 4de3bb14b22491d8a0a2dd5f1fa5f47285b97d3f126fba38b25a1eccb5a39563); full --dry-run exit 1: conversion/mimo.py:211 KeyError model.layers.1.mlp.experts.12.gate_proj.weight (expert-merge trigger n_routed_experts*3 fires early because .weight_scale keys also match 'mlp.experts' across 64 shard files in lexicographic ep0,ep1,ep10,... order)",
-      "missing": "converter expert-merge fix (owned by NativeGgufBridge); system python3 unusable for transformers on this Mac (packaging metadata resolves None) -- must use $REPO/.venv/bin/python",
-      "next": "after the fix: (cd $STRIX_SRC && $REPO/.venv/bin/python convert_hf_to_gguf.py $MIMO_LAB/source-models/XiaomiMiMo--MiMo-V2.6-Flash-RL/5711b268169967567844e1e560e8a3966da959b1 --outfile $MIMO_LAB/source-models/mimo2-trunk.gguf) -- and the output is the layer-streamed ORIGINAL quality reference ONLY: NEVER resident-load it (-ngl 999), source scale 172923364096 B observed (~161 GiB, larger after conversion) exceeds both 48 GiB Mac and 128 GB Halo"
+      "id": "tokenizer-nfc-parity",
+      "ref": "patches/strix-tokenizer-nfc.patch and pinned tokenizer implementation",
+      "evidence": "validated-on-Mac (bounded regression scope only)",
+      "proof": "Source-correct tokenizer.ggml.normalizer.nfc metadata and ICU-backed normalization are in current registered patches/strix-tokenizer-nfc.patch (SHA256 03e4e745f1644eb9c1923b6c4d40ff90664ada36772a864603707f243ca92448, base 8c1c282ecb194e8f02613defcc4a07c22b6d1c08). Main reports the final tests.test_tokenizer_nfc suite passed 6/6 on Mac, covering valid NFC, malformed-byte red-to-green handling, the legacy control, and non-BPE writer refusal. For b'\\xc3(', rebuilt llama-tokenize uses HF-compatible U+FFFD replacement semantics; the no-NFC control is unchanged. A downstream CMake find_package(llama) consumer calling llama_tokenize configured, compiled and linked successfully against temporary static libllama; its consumer main was not executed. pkg-config --static --libs llama includes -licuuc -licudata. This is bounded Mac evidence only, not universal tokenizer correctness or Halo parity.",
+      "missing": "Halo ICU build/token-ID parity and broader real-tokenizer coverage remain unverified; no real-candidate quality or Halo runtime result is recorded",
+      "next": "apply all four registered patches and build with the actual ICU development prefix on Halo, then record separate tokenizer parity evidence"
+    },
+    {
+      "id": "mimo-native-candidate-converter",
+      "ref": "$MIMO_LAB/quantized-models/$CANDIDATE_ID.gguf (selected original-derived native candidate)",
+      "evidence": "validated-on-Mac (synthetic converter/runtime proof only)",
+      "proof": "patches/strix-mimo-native-mxfp4.patch is registered at SHA256 dc55e76ad662ca2f1d3acfa8ed68382eac3a2c0803667332f95a66534eb96519 on base 8c1c282ecb194e8f02613defcc4a07c22b6d1c08 and is applied to the pinned checkout. Native converter evidence: regenerated tiny_a (6 experts), 84,913,760 B, SHA256 8237e9508ef07b17e02ac360bdabe5a63943cca77a979e11f69abccfb81a79ff; and tiny_b (5 experts, top-k 2), 84,833,888 B, SHA256 099e8be9f1305063a772e5489f5c00a54aca1ba6fc44208c546edcec6ad4d808. Main confirms both were exported with NFC metadata and hashes are unchanged after the final rebuild. Pre-NFC hashes 0a7ff93241605711133006784a18cfe191e6db80768a56b9e6a4af4b75474d4e and cc005a09425e6f2ef9b6600f65d9e3b247bb49807e71eaba8fc7292040e5e6de identify earlier files only. Post-NFC synthetic smoke: composed and decomposed é both tokenize to [963], and actual CPU llama-cli smoke runs with a valid test prompt on tiny_a and tiny_b exited 0. This is native format/tokenizer/graph evidence only, not model quality or Halo compatibility. tiny_c mixed second_gen_affine/native remains explicitly refused; no full-original GGUF conversion is required.",
+      "missing": "a selected original-derived candidate and its real conversion; measured resident-memory admission and Halo execution",
+      "next": "runbook step 34 exact command: mkdir -p \"$MIMO_LAB/quantized-models\" && PYTHONPATH=\"$STRIX_SRC/gguf-py\" \"$REPO/.venv/bin/python\" \"$STRIX_SRC/convert_hf_to_gguf.py\" \"$CANDIDATE_DIR\" --outfile \"$MIMO_LAB/quantized-models/$CANDIDATE_ID.gguf\" --outtype f16; for second_gen_affine use the exact layer-streamed scorer instead of GGUF"
     },
     {
       "id": "resident-candidate-gguf",
-      "ref": "$CANDIDATE_DIR/$MODEL (selected pruned ~90 GiB candidate for resident serving/benchmarks)",
+      "ref": "$MODEL (set after successful conversion to $MIMO_LAB/quantized-models/$CANDIDATE_ID.gguf; selected pruned ~90 GiB candidate for resident serving/benchmarks)",
       "evidence": "untested-on-Halo",
       "proof": "no candidate GGUF built yet (pruned-models/ and quantized-models/ observed empty); resident -ngl 999 load of the unpruned trunk is NOT a valid arrival baseline (source scale exceeds both machines' RAM)",
       "missing": "candidate build (quality-first sweep, original Xiaomi weights only), then artifact-size preflight against the accepted band",
@@ -131,9 +139,9 @@
       "id": "build-driver",
       "ref": "scripts/build_runtime.py",
       "evidence": "validated-on-Mac (plans + guard rails); builds untested-on-Halo",
-      "proof": "plan exit 0 for cpu/metal/vulkan/hip with pin verified (hip plan carries -DGPU_TARGETS=gfx1151 and records HIPCXX/HIP_PATH requirements without substitution; runtime_env HIP_LAUNCH_BLOCKING=1, HSA_OVERRIDE_GFX_VERSION=11.5.1, GGML_HIP_ENABLE_UNIFIED_MEMORY=1); refusals all exit 2: --run without --yes, --run+--skip-pin-check, --jobs 0, unknown backend; no code fix needed",
-      "missing": "SSH + backend toolchains",
-      "next": "runbook E steps 25-29 via the driver"
+      "proof": "plan exit 0 for cpu/metal/vulkan/hip with pin verified (hip plan carries -DGPU_TARGETS=gfx1151 and records HIPCXX/HIP_PATH requirements without substitution; runtime_env HIP_LAUNCH_BLOCKING=1, HSA_OVERRIDE_GFX_VERSION=11.5.1, GGML_HIP_ENABLE_UNIFIED_MEMORY=1); refusals all exit 2: --run without --yes, --run+--skip-pin-check, --jobs 0, unknown backend. NFC CMake now requires ICU4C uc and fails configure if missing; Mac proof used /opt/homebrew/opt/icu4c@78, and Halo must pass its actual ICU prefix explicitly.",
+      "missing": "SSH + backend toolchains + Halo ICU development package and actual ICU prefix",
+      "next": "runbook E steps 25-29 via the driver with ICU_ROOT and CMAKE_PREFIX_PATH set to ICU_PREFIX"
     },
     {
       "id": "hardware-capture",
@@ -163,8 +171,9 @@
   "external_blockers": [
     "SSH target $HALO unreachable until the Strix Halo arrives (deadline 2026-09-23 10:00 BST) -- gates every untested-on-Halo row",
     "gfx1151 hardware truth: RADV/ROCm driver presence, BIOS Gate D (UMA/GTT/IOMMU/SecureBoot), sudo-marked capture lines -- operator/hardware only",
-    "converter expert-merge KeyError fix (NativeGgufBridge) before mimo2-trunk.gguf can exist",
-    "real dataset corpus per configs/dataset.json not yet materialized; checksums.txt and perplexity-slice.txt derive from it -- no placeholder substitutes",
+    "real selected original-derived candidate conversion and measured resident-memory admission are pending; no full-original GGUF conversion is a required prep step",
+    "native GGUF runtime proof for the real candidate and Halo is pending; tiny synthetic CPU load/generation proves format/graph execution only, not quality or Halo compatibility",
+    "Halo ICU development package/prefix and Halo tokenizer parity remain unverified; the six-test tokenizer suite, downstream static consumer link and synthetic tiny_a/tiny_b CPU smokes passed on Mac but establish neither Halo execution nor real-candidate quality",
     "Mac scope hard limit: 48 GiB RAM -- no full candidate/conversion materialization on the Mac; full conversions belong on the Halo or a bounded streamed flow coordinated with MiMoObservationRun"
   ],
   "first_halo_sequence": [
@@ -173,16 +182,19 @@
     "export HALO=user@halo",
     "export STRIX_SRC=\"$REPO/upstreams/strix-llama.cpp\"   # separate assignment so it never reads a prior STRIX_SRC value",
     "for r in reap strix-llama.cpp rocmfp4 llama.cpp; do git -C \"$REPO/upstreams/$r\" rev-parse HEAD; done   # must equal manifests/upstreams.json (steps 8-11)",
-    "runbook step 12 patch loop over \"$REPO\"/patches/strix-*.patch (apply fresh; reverse --check both; sha256 == manifest)",
+    "runbook step 12 patch loop over \"$REPO\"/patches/strix-*.patch applies/hash-checks all four Strix patches (including tokenizer NFC)",
+    "install standard ICU development package (Debian/Ubuntu: sudo apt-get install libicu-dev pkg-config); ICU_PREFIX=$(pkg-config --variable=prefix icu-uc); test -n \"$ICU_PREFIX\" || exit 1; export ICU_PREFIX",
     "runbook step 18 printf one-liner -> \"$REPO/configs/hw-commands.txt\" (no heredoc; copy-paste safe)",
     "python3 \"$REPO/scripts/hardware_capture.py\" --commands \"$REPO/configs/hw-commands.txt\"   # raw stays under $MIMO_LAB/traces/private/",
     "python3 \"$REPO/scripts/workspace.py\" init --min-model-free-bytes 128849018880 && python3 \"$REPO/scripts/workspace.py\" status",
-    "python3 \"$REPO/scripts/build_runtime.py\" --source \"$STRIX_SRC\" --backend vulkan --run --yes   # then cpu; hip when hipconfig exists",
+    "ICU_ROOT=\"$ICU_PREFIX\" CMAKE_PREFIX_PATH=\"$ICU_PREFIX\" python3 \"$REPO/scripts/build_runtime.py\" --source \"$STRIX_SRC\" --backend vulkan --run --yes   # then cpu; hip when hipconfig exists",
     "ctest --test-dir \"$STRIX_SRC/build-vulkan\" --output-on-failure",
     "stage fixture: cp -n \"$REPO/scratch/loadability/tiny_b_dense.gguf\" \"$MIMO_LAB/source-models/tiny.gguf\"; sha256sum identity check == 04399ecf52904ce316e06ea4b73d3820793ee07c0c9eff2d43efd735386d9647 (synthetic fixture, not a quality model)",
     "\"$STRIX_SRC/build-cpu/bin/llama-cli\" --model \"$MIMO_LAB/source-models/tiny.gguf\" --offline --ctx-size 512 --n-gpu-layers 0 --threads 1 --seed 42 --temp 0 --n-predict 8 --single-turn --simple-io --prompt test   # then build-vulkan --n-gpu-layers 999, then HIP with step-28 control env",
-    "[BLOCKED: converter fix] convert original weights -> $MIMO_LAB/source-models/mimo2-trunk.gguf = layer-streamed ORIGINAL quality reference ONLY, never resident-loaded (~161 GiB observed source scale > 128 GB Halo and > 48 GiB Mac)",
-    "[BLOCKED: candidate not built] resident baseline needs $CANDIDATE_DIR/$MODEL (~$90 GiB): runbook step 34 artifact-size preflight (stat -c%s <= 98569499443 = budget.window_bytes[1], 90 GiB +2% accepted band; MemAvailable >= bytes + 16 GiB FIRST_BOOT_RESERVE_ASSUMPTION; file size is a proxy, NOT resident weight memory -- final reports measure loader/runtime resident memory), then llama-cli sanity; perplexity needs the slice from the configs/dataset.json corpus",
+    "original Xiaomi source remains the layer-streamed quality reference; no full-original GGUF conversion or resident load is required",
+    "selected native candidate converter: mkdir -p \"$MIMO_LAB/quantized-models\" && PYTHONPATH=\"$STRIX_SRC/gguf-py\" \"$REPO/.venv/bin/python\" \"$STRIX_SRC/convert_hf_to_gguf.py\" \"$CANDIDATE_DIR\" --outfile \"$MIMO_LAB/quantized-models/$CANDIDATE_ID.gguf\" --outtype f16   # second_gen_affine is explicitly unsupported for GGUF; use the exact layer-streamed scorer",
+    "after successful conversion: export MODEL=\"$MIMO_LAB/quantized-models/$CANDIDATE_ID.gguf\"",
+    "[BLOCKED: selected candidate not built] resident baseline needs \"$MODEL\" (~$90 GiB): runbook step 34 artifact-size preflight (stat -c%s <= 98569499443 = budget.window_bytes[1], 90 GiB +2% accepted band; MemAvailable >= bytes + 16 GiB FIRST_BOOT_RESERVE_ASSUMPTION; file size is a proxy, NOT resident weight memory -- final reports measure loader/runtime resident memory), then llama-cli sanity; perplexity needs the slice from the configs/dataset.json corpus",
     "rsync -a --checksum datasets payloads (step 23) -> sha256sum -c checksums.txt -> gates E/F -> benchmark matrix steps 38+"
   ]
 }

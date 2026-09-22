@@ -8,6 +8,11 @@ environment variables only:
 - `$REPO` — a checkout of this repository.
 - `$STRIX_SRC` — pinned strix-llama.cpp source (`upstreams/strix-llama.cpp`).
 - `$ROCMFP4_SRC` — pinned rocmfp4 source (`upstreams/rocmfp4`).
+- `$CANDIDATE_DIR` — the selected candidate checkpoint directory, derived from
+  the pinned original Xiaomi weights (operator sets it; it contains the
+  candidate `config.json`, tensor shards, and tokenizer auxiliary files).
+- `$CANDIDATE_ID` — stable operator-chosen name for the selected candidate
+  GGUF output (no path or host identity).
 - `$MODEL` — the candidate GGUF under evaluation (operator sets it).
 - `$MODEL_REF` — a well-supported reference-architecture MoE GGUF under
   `$MIMO_LAB/source-models/` (operator sets it).
@@ -63,11 +68,11 @@ MiMoObservationRun. The 128 GB target is the Halo, and every Halo row stays
     `38a5b42d9a3e82e0a586bcd1caed121f36c87a73` (official reference pin).
 12. Cross-check the pins against `manifests/upstreams.json`; any mismatch
     blocks everything downstream. A fresh checkout from the manifest
-    `fetch_method` carries NO local patches — apply and confirm both, then
-    hash-check the patch files themselves against the manifest `patches`
-    entries (patch-file vs applied-diff hashes differ by the patch's
-    explanatory header; only file hashes are compared — proven on a clean
-    pinned worktree: apply fresh + reverse `--check` OK for both):
+    `fetch_method` carries NO local patches — apply and confirm each of the
+    four patches listed for `strix-llama.cpp`, then compare each patch-file
+    SHA-256 with its manifest entry (patch-file vs applied-diff hashes differ
+    by the explanatory header; compare file hashes). The tokenizer NFC patch
+    requires ICU4C `uc`; install/configure that dependency before building:
 
     ```sh
     for p in "$REPO"/patches/strix-*.patch; do
@@ -80,12 +85,18 @@ MiMoObservationRun. The 128 GB target is the Halo, and every Halo row stays
 
 ## C. Mac correctness build (deferred to Main; exact commands)
 
-13. `cd "$STRIX_SRC" && cmake -B build-metal -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_METAL=ON -DGGML_VULKAN=OFF -DGGML_HIP=OFF`
+13. On Mac, install the pinned ICU development package with `brew install icu4c@78`, then configure the pinned source with the explicit Homebrew prefix:
+    ```sh
+    cd "$STRIX_SRC" && cmake -B build-metal -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_METAL=ON -DGGML_VULKAN=OFF -DGGML_HIP=OFF -DICU_ROOT=/opt/homebrew/opt/icu4c@78 -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/icu4c@78
+    ```
+    ICU4C component `uc` is REQUIRED by the NFC patch: CMake fails
+    configuration when ICU is missing. Do not disable it or silently fall
+    back to incomplete normalization tables.
 14. `cmake --build build-metal --config Release -j 16`
 15. `ctest --test-dir build-metal --output-on-failure`
 16. Equivalently, via the driver:
-    `python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend metal --run --yes`
-    (plan-only by default: `python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend metal`;
+    `ICU_ROOT=/opt/homebrew/opt/icu4c@78 CMAKE_PREFIX_PATH=/opt/homebrew/opt/icu4c@78 python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend metal --run --yes`
+    (plan-only by default: `ICU_ROOT=/opt/homebrew/opt/icu4c@78 CMAKE_PREFIX_PATH=/opt/homebrew/opt/icu4c@78 python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend metal`;
     the plan prints each step as an argv list plus env requirements, defaults
     to the per-backend `build-metal` directory, and installs no tools).
 17. Mac-side purpose: CPU/Metal correctness sanity of codecs and tooling.
@@ -130,19 +141,33 @@ MiMoObservationRun. The 128 GB target is the Halo, and every Halo row stays
 
 ## E. Backend builds on the Halo box
 
+    The Strix Halo build also requires the standard ICU development package
+    (for Debian/Ubuntu: `sudo apt-get install libicu-dev pkg-config`; install
+    the distribution's ICU development package on other Linux systems). Set
+    `ICU_PREFIX` to the actual ICU installation prefix and pass it to every
+    CMake configure below; for Debian/Ubuntu:
+
+    ```sh
+    ICU_PREFIX=$(pkg-config --variable=prefix icu-uc)
+    test -n "$ICU_PREFIX" || { echo "ICU prefix unavailable"; exit 1; }
+    export ICU_PREFIX
+    ```
+
+    ICU4C `uc` is required, not optional. The patched CMake configuration
+    fails if ICU cannot be found; do not disable NFC or silently fall back.
 25. Vulkan (default recommendation): `cd "$STRIX_SRC" &&
-    cmake -B build-vulkan -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_VULKAN=ON -DGGML_METAL=OFF -DGGML_HIP=OFF &&
+    cmake -B build-vulkan -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_VULKAN=ON -DGGML_METAL=OFF -DGGML_HIP=OFF -DICU_ROOT="$ICU_PREFIX" -DCMAKE_PREFIX_PATH="$ICU_PREFIX" &&
     cmake --build build-vulkan --config Release -j 16`.
 26. `ctest --test-dir build-vulkan --output-on-failure`
-    — or `python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend vulkan --run --yes`.
+    — or `ICU_ROOT="$ICU_PREFIX" CMAKE_PREFIX_PATH="$ICU_PREFIX" python3 "$REPO/scripts/build_runtime.py" --source "$STRIX_SRC" --backend vulkan --run --yes`.
 27. HIP (control lane): `cd "$STRIX_SRC" && HIPCXX="$(hipconfig -l)/clang"
     HIP_PATH="$(hipconfig -R)" cmake -B build-hip -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_HIP=ON
-    -DGPU_TARGETS=gfx1151 -DGGML_METAL=OFF -DGGML_VULKAN=OFF && cmake --build build-hip --config Release -j 16`.
+    -DGPU_TARGETS=gfx1151 -DGGML_METAL=OFF -DGGML_VULKAN=OFF -DICU_ROOT="$ICU_PREFIX" -DCMAKE_PREFIX_PATH="$ICU_PREFIX" && cmake --build build-hip --config Release -j 16`.
 28. Every HIP-path run sets `HIP_LAUNCH_BLOCKING=1` (and
     `HSA_OVERRIDE_GFX_VERSION=11.5.1 GGML_HIP_ENABLE_UNIFIED_MEMORY=1` where
     the ROCmFP4 quickstart says so). This is a documented correctness
     control (README:76-82, CI config), not a performance claim.
-29. CPU reference build: `cd "$STRIX_SRC" && cmake -B build-cpu -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_METAL=OFF -DGGML_VULKAN=OFF -DGGML_HIP=OFF &&
+29. CPU reference build: `cd "$STRIX_SRC" && cmake -B build-cpu -DCMAKE_BUILD_TYPE=Release -DLLAMA_BUILD_TESTS=ON -DGGML_METAL=OFF -DGGML_VULKAN=OFF -DGGML_HIP=OFF -DICU_ROOT="$ICU_PREFIX" -DCMAKE_PREFIX_PATH="$ICU_PREFIX" &&
     cmake --build build-cpu --config Release -j 16` (AVX-512 Zen 5 baseline).
 
 ## F. Reference-model sanity ladder (bare-metal, before any virtualization)
@@ -175,37 +200,108 @@ MiMoObservationRun. The 128 GB target is the Halo, and every Halo row stays
     `"$STRIX_SRC/build-vulkan/bin/llama-bench" -m "$MODEL_REF" -p 8192`,
     then
     `HIP_LAUNCH_BLOCKING=1 HSA_OVERRIDE_GFX_VERSION=11.5.1 GGML_HIP_ENABLE_UNIFIED_MEMORY=1 "$STRIX_SRC/build-hip/bin/llama-bench" -m "$MODEL_REF" -p 8192`.
-34. MiMo original-weights conversion + candidate-gated resident smoke.
-    Convert the real trunk checkpoint from the original Xiaomi weights with
-    the pinned converter via the repo venv — the system `python3` on the prep
-    Mac cannot import `transformers` (packaging metadata resolves None);
-    `--vocab-only` is proven exit 0 through this venv (and the dry-run
-    empirically enters the pinned converter's mimo2 text path — no HF
-    architecture-class claim is made here), but the full conversion is
-    **blocked until the expert-merge `KeyError`
-    (`conversion/mimo.py:211`, `model.layers.1.mlp.experts.12.gate_proj.weight`)
-    is fixed (owned by NativeGgufBridge)** — never wave that gate:
+34. MiMo selected original-derived native candidate conversion + candidate-gated
+    resident smoke. The native converter patch is applied by step 12 and
+    supports packed native MXFP4 expert payloads paired with their E8M0 scale
+    siblings. Convert only the selected candidate checkpoint:
 
     ```sh
-    (cd "$STRIX_SRC" && "$REPO/.venv/bin/python" convert_hf_to_gguf.py \
-      "$MIMO_LAB/source-models/XiaomiMiMo--MiMo-V2.6-Flash-RL/5711b268169967567844e1e560e8a3966da959b1" \
-      --outfile "$MIMO_LAB/source-models/mimo2-trunk.gguf")
+    mkdir -p "$MIMO_LAB/quantized-models"
+    PYTHONPATH="$STRIX_SRC/gguf-py" \
+      "$REPO/.venv/bin/python" "$STRIX_SRC/convert_hf_to_gguf.py" \
+      "$CANDIDATE_DIR" \
+      --outfile "$MIMO_LAB/quantized-models/$CANDIDATE_ID.gguf" \
+      --outtype f16
+    ```
+    After successful conversion, use that output for all resident commands:
+
+    ```sh
+    export MODEL="$MIMO_LAB/quantized-models/$CANDIDATE_ID.gguf"
     ```
 
-    The unpruned trunk GGUF is the **layer-streamed ORIGINAL quality
-    reference only — NEVER resident-loaded**: its source scale (~161 GiB
-    observed in `model.safetensors.index.json` `total_size` 172923364096 B,
-    larger after conversion) exceeds both the 48 GiB prep Mac and the 128 GB
-    Halo. Original-reference quality numbers come from the layer-streamed
-    flow, not from a `-ngl 999` run.
+    `$CANDIDATE_DIR` must be a candidate derived from the pinned original
+    Xiaomi checkpoint; record its selection/provenance separately. Do **not**
+    make a full-original `mimo2-trunk.gguf` conversion a preparation step or
+    resident-load it. The original source remains the layer-streamed ORIGINAL
+    quality reference, and original-quality numbers come from that exact
+    streamed scorer. If the selected checkpoint contains
+    `second_gen_affine` expert tensors, this GGUF conversion is explicitly
+    unsupported: the converter must refuse them rather than mislabel or
+    requantize them, and the exact layer-streamed scorer is required.
 
-    Resident serving/benchmarks consume an actual selected ~$90 GiB
-    candidate — `$CANDIDATE_DIR/$MODEL` — and only after this artifact-size
-    preflight (admission ceiling =
-    `budget.window_bytes[1]` = 98569499443 in
-    `configs/experiments/compression-sweep.json`, the 90 GiB ±2% ACCEPTED
-    upper band — gating on `target_resident_bytes` alone would silently
-    reject in-band candidates such as REAP45 (+0.84%) and REAP25 (+0.98%)):
+    The supported native path repacks packed MXFP4 expert values losslessly
+    into GGML `block_mxfp4` tensors and labels the output
+    `MOSTLY_MXFP4_MOE`; this is format/converter evidence, not model-quality
+    evidence. On the Mac, the observed proof is limited to synthetic
+    `tiny_a` (6 experts) and non-power-of-two/pruned `tiny_b` (5 experts,
+    top-k 2): the converted files are
+    `scratch/loadability/tiny_a-native.gguf`
+    (84,913,760 B; sha256
+    `8237e9508ef07b17e02ac360bdabe5a63943cca77a979e11f69abccfb81a79ff`)
+    and `scratch/loadability/tiny_b-native.gguf`
+    (84,833,888 B; sha256
+    `099e8be9f1305063a772e5489f5c00a54aca1ba6fc44208c546edcec6ad4d808`).
+    These regenerated files include NFC metadata. Earlier hashes
+    `0a7ff932...` and `cc005a09...` identify pre-NFC files only. Their
+    CPU-generated eight-token smoke proves native format/graph only, not NFC
+    behavior.
+
+    The converter's existing tokenizer warning was observed and not suppressed
+    or changed. Before the NFC patch, raw parity matched 12/13 broader cases;
+    composed `U+00E9` and decomposed `U+0065 U+0301` both mapped to `[963]`
+    in the HF source, while the pinned tokenizer mapped the decomposed form
+    to `[68, 53839]`. The source-correct
+    `tokenizer.ggml.normalizer.nfc` metadata and ICU-backed path pass bounded
+    Mac regression coverage:
+
+    ```sh
+    env PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 .venv/bin/python -W error::ResourceWarning -m unittest tests.test_tokenizer_nfc -v
+    ```
+
+    Main observed the pre-rebuild red case (five decomposed spellings differed)
+    and the earlier post-rebuild **4/4 passed** in 20.6 s. The final suite on
+    corrected patch `03e4e745f1644eb9c1923b6c4d40ff90664ada36772a864603707f243ca92448`
+    passes **6/6**, including valid NFC, malformed-byte red-to-green behavior,
+    the legacy control, and refusal of non-BPE GGUF writing. For malformed
+    `b"\xc3("`, rebuilt `llama-tokenize` uses HF-compatible U+FFFD
+    replacement semantics; the no-NFC control is unchanged.
+
+    The installed-consumer smoke also passed configure/build: a temporary
+    static `libllama` and downstream CMake `find_package(llama)` consumer
+    calling `llama_tokenize` compiled and linked successfully (no consumer
+    runtime invocation); `pkg-config --static --libs llama`
+    includes `-licuuc -licudata`. Current tiny_a/tiny_b native GGUF hashes
+    remain unchanged, composed and decomposed `é` both produce token ID
+    `[963]`, and actual CPU `llama-cli` smoke runs with a valid test prompt on
+    both artifacts exited 0.
+    These are bounded synthetic Mac proofs only, not real-candidate quality
+    or Halo evidence. Real-candidate conversion/quality, measured resident
+    memory, and Halo build/parity/runtime proof remain pending. Do not apply
+    a blind tokenizer/regex workaround.
+
+    Keep three quantities distinct in every report:
+
+    - **Native storage/recipe band:** the accepted text-weight window
+      `budget.window_bytes = [94704028877, 98569499443]` (90 GiB ±2%) from
+      exact candidate accounting. It is not the unpruned original source
+      size, the GGUF file size, or a runtime-memory measurement.
+    - **Converted payload:** `--outtype f16` leaves native MXFP4 expert
+      blocks lossless, but expands non-expert FP8 E4M3 qkv/dense payloads to
+      F16 at approximately 2x their stored bytes; BF16 non-experts become
+      F16 at approximately 1x, while one-dimensional norms/router/bias
+      classes can become F32 at approximately 2x. GGUF metadata/alignment
+      also contributes to the artifact. Measure the actual output; do not
+      infer it from nominal bpw.
+    - **Actual resident memory:** bytes reported by the loader/runtime on the
+      target machine, including the runtime's allocations. This is the final
+      admission and quality-report quantity, not the converted file size.
+
+    An out-of-band diagnostic (including a tiny fixture or an artifact outside
+    the accepted band) is never a matched-budget winner. Resident serving and
+    quality comparisons consume the selected GGUF at `$MODEL` only after this
+    conservative artifact-size preflight (admission ceiling =
+    `98569499443` in `configs/experiments/compression-sweep.json`, the 90 GiB
+    ±2% accepted upper band):
 
     ```sh
     CAND_FILE_BYTES=$(stat -c%s "$MODEL")                # artifact file size: conservative preflight proxy ONLY — NOT resident weight memory
@@ -217,15 +313,17 @@ MiMoObservationRun. The 128 GB target is the Halo, and every Halo row stays
     "$STRIX_SRC/build-vulkan/bin/llama-cli" --model "$MODEL" --offline --ctx-size 512 --n-gpu-layers 999 --threads 1 --seed 42 --temp 0 --n-predict 16 --single-turn --simple-io --prompt sanity
     ```
 
-    File size is only a conservative artifact-size preflight proxy — it does
-    NOT equal resident weight memory; final admission and quality reports
-    must use actual loader/runtime resident-memory measurements, and the
-    16 GiB reserve above is a named conservative first-boot assumption, not
-    a measured hardware requirement.
+    File size remains only a conservative artifact-size preflight proxy — it
+    does **not** equal resident weight memory. Final admission and quality
+    reports must use actual loader/runtime resident-memory measurements, and
+    the 16 GiB reserve above is a named conservative first-boot assumption,
+    not a measured hardware requirement. Native runtime proof for the real
+    selected candidate and for Halo is still pending; the tiny CPU proof above
+    does not promote a candidate or claim Halo compatibility.
 
-    **No candidate has been built yet — this resident leg stays BLOCKED;
-    no fake substitution** (the tiny fixture proves graph compatibility
-    only, never quality). Perplexity leg on the candidate:
+    **No selected candidate has been built yet — this resident leg stays
+    BLOCKED; no fake substitution** (the tiny fixtures prove graph/format
+    compatibility only, never quality). Perplexity leg on the candidate:
     `"$STRIX_SRC/build-vulkan/bin/llama-perplexity" -m "$MODEL" --file "$MIMO_LAB/datasets/perplexity-slice.txt" -ngl 999`
     — the slice must be cut from the real corpus governed by
     `configs/dataset.json` / `docs/datasets.md` (no placeholder data; the
