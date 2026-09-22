@@ -684,6 +684,15 @@
         51,
         88
       ]
+    },
+    {
+      "planid": 71,
+      "number": 93,
+      "dbid": 5540655953,
+      "url": "https://github.com/dymoo/mimo-halo-lab/issues/93",
+      "depends_on_issues": [
+        88
+      ]
     }
   ],
   "labels": {
